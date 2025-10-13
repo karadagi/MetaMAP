@@ -80,7 +80,7 @@ public class MetaBuildingCMP : GH_Component
     /// </summary>
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
         {
-            pManager.AddMeshParameter("Building Meshes", "BM", "2D building projection meshes from OpenStreetMap", GH_ParamAccess.list);
+            pManager.AddBrepParameter("Building Breps", "BB", "3D building Breps from OpenStreetMap", GH_ParamAccess.list);
             pManager.AddNumberParameter("Building Heights", "BH", "Building heights in meters", GH_ParamAccess.list);
             pManager.AddTextParameter("Status", "S", "Processing status and information", GH_ParamAccess.item);
         }
@@ -107,7 +107,7 @@ public class MetaBuildingCMP : GH_Component
 
         if (!run)
         {
-            DA.SetDataList(0, new List<Mesh>());
+            DA.SetDataList(0, new List<Brep>());
             DA.SetDataList(1, new List<double>());
             string terrainStatus = terrainMesh != null ? $" with terrain mesh ({terrainMesh.Vertices.Count} vertices)" : " (no terrain mesh)";
             DA.SetData(2, $"MetaBuilding ready{terrainStatus} - Location: {lat:F6}, {lon:F6}, Radius: {radius}m. Set 'Run' to true to execute.");
@@ -147,21 +147,21 @@ public class MetaBuildingCMP : GH_Component
             var buildings = ParseOSMBuildings(osmData, terrainMesh);
             
             // Output results (like the old version)
-            var meshList = new List<Mesh>();
+            var brepList = new List<Brep>();
             var heightList = new List<double>();
-            for (int i = 0; i < buildings.Meshes.Count; i++)
+            for (int i = 0; i < buildings.Breps.Count; i++)
             {
-                meshList.Add(buildings.Meshes[i]);
+                brepList.Add(buildings.Breps[i]);
                 heightList.Add(buildings.Heights[i]);
             }
-            DA.SetDataList(0, meshList);
+            DA.SetDataList(0, brepList);
             DA.SetDataList(1, heightList);
             string terrainInfo = terrainMesh != null ? " (aligned with terrain)" : " (flat at Z=0)";
             DA.SetData(2, $"Successfully processed {buildings.Count} buildings from OpenStreetMap{terrainInfo}. Location: {lat:F6}, {lon:F6}, Radius: {radius}m. {_lastDebugInfo}");
         }
         catch (Exception ex)
         {
-            DA.SetDataList(0, new List<Mesh>());
+            DA.SetDataList(0, new List<Brep>());
             DA.SetDataList(1, new List<double>());
             DA.SetData(2, $"Error: {ex.Message}");
         }
@@ -425,12 +425,12 @@ out geom;";
             }
 
             // Create simple 2D projection mesh (like the old working version)
-            var mesh = CreateProjectionMesh(polyline);
+            var brep = CreateBuildingBrep(polyline, height);
             
             // Validate mesh
-            if (mesh == null || !mesh.IsValid)
+            if (brep == null || !brep.IsValid)
             {
-                _lastDebugInfo += $", Building {element.Id}: Mesh creation failed";
+                _lastDebugInfo += $", Building {element.Id}: Brep creation failed";
                 return null;
             }
 
@@ -438,7 +438,7 @@ out geom;";
             var building = new BuildingInfo
             {
                 Outline = polyline.ToNurbsCurve(),
-                Mesh = mesh,
+                Brep = brep,
                 Height = height,
                 Metadata = $"Building ID: {element.Id}, Height: {height}m, Type: {GetBuildingType(element)}"
             };
@@ -491,247 +491,29 @@ out geom;";
         };
     }
 
-    private Mesh CreateBuildingMesh(Polyline polyline, double height)
+    private Brep CreateBuildingBrep(Polyline polyline, double height)
     {
         try
         {
-            // Create a 3D building mesh that follows terrain
+            // Create a 3D building brep that follows terrain
             var curve = polyline.ToNurbsCurve();
             if (curve == null || !curve.IsValid)
-                return CreateSimpleBoxMesh(polyline, height);
+                return null;
 
             // Create a planar brep from the curve at the terrain level
-            var brep = Brep.CreatePlanarBreps(curve);
-            if (brep == null || brep.Length == 0)
-                return CreateSimpleBoxMesh(polyline, height);
-
-            // Create a line for extrusion direction
-            var extrusionLine = new Line(Point3d.Origin, new Point3d(0, 0, height));
-            var extrusionCurve = extrusionLine.ToNurbsCurve();
-
-            // Extrude the surface using the line
-            var extrudedBrep = brep[0].Faces[0].CreateExtrusion(extrusionCurve, true);
-            if (extrudedBrep == null)
-            {
-                // Fallback: create a simple box mesh
-                return CreateSimpleBoxMesh(polyline, height);
-            }
-
-            // Convert to mesh with better parameters for building shapes
-            var meshingParams = new MeshingParameters();
-            meshingParams.SimplePlanes = true; // Use simple plane meshing
-            meshingParams.JaggedSeams = false; // Clean seams for better appearance
-            meshingParams.GridMinCount = 1;    // Minimum grid count
-            meshingParams.GridMaxCount = 1;    // Maximum grid count
-            
-            var meshes = Mesh.CreateFromBrep(extrudedBrep, meshingParams);
-            if (meshes == null || meshes.Length == 0)
-                return CreateSimpleBoxMesh(polyline, height);
-
-            var mesh = meshes[0];
-            if (mesh != null && mesh.IsValid)
-            {
-                mesh.Normals.ComputeNormals();
-                mesh.Compact();
-                return mesh;
-            }
-
-            return CreateSimpleBoxMesh(polyline, height);
-        }
-        catch
-        {
-            // Fallback to simple box mesh if extrusion fails
-            return CreateSimpleBoxMesh(polyline, height);
-        }
-    }
-
-    private Mesh CreateProjectionMesh(Polyline polyline)
-    {
-        try
-        {
-            // For buildings on terrain, we need to create a mesh that follows the terrain surface
-            // First try to create a planar mesh from the polyline
-            var curve = polyline.ToNurbsCurve();
-            if (curve == null || !curve.IsValid)
-            {
-                // Fallback: create simple triangulated mesh
-                return CreateSimpleTriangulatedMesh(polyline);
-            }
-
-            // Create a planar brep from the curve
-            var brep = Brep.CreatePlanarBreps(curve);
-            if (brep == null || brep.Length == 0)
-            {
-                // Fallback: create simple triangulated mesh
-                return CreateSimpleTriangulatedMesh(polyline);
-            }
-
-            // Convert brep to mesh using better meshing parameters
-            var meshingParams = new MeshingParameters();
-            meshingParams.SimplePlanes = true; // Use simple plane meshing
-            meshingParams.JaggedSeams = false; // Clean seams
-            var meshes = Mesh.CreateFromBrep(brep[0], meshingParams);
-            if (meshes == null || meshes.Length == 0)
-            {
-                // Fallback: create simple triangulated mesh
-                return CreateSimpleTriangulatedMesh(polyline);
-            }
-
-            var mesh = meshes[0];
-            if (mesh != null && mesh.IsValid)
-            {
-                mesh.Normals.ComputeNormals();
-                mesh.Compact();
-                return mesh;
-            }
-
-            // Final fallback: create simple triangulated mesh
-            return CreateSimpleTriangulatedMesh(polyline);
-        }
-        catch (Exception ex)
-        {
-            // Debug: Log mesh creation error
-            _lastDebugInfo += $", Mesh creation error: {ex.Message}";
-            // Fallback: create simple triangulated mesh
-            return CreateSimpleTriangulatedMesh(polyline);
-        }
-    }
-
-    private Mesh CreateSimpleTriangulatedMesh(Polyline polyline)
-    {
-        try
-        {
-            // Create a simple triangulated mesh for complex building shapes
-            var points = polyline.ToArray();
-            if (points.Length < 3)
-            {
-                _lastDebugInfo += $", Triangulated mesh: insufficient points ({points.Length})";
-                return null;
-            }
-
-            var mesh = new Mesh();
-            
-            // Add all vertices
-            foreach (var pt in points)
-            {
-                mesh.Vertices.Add(pt);
-            }
-            
-            // Create triangulated faces using fan triangulation
-            // This works for any polygon shape, even complex ones
-            for (int i = 1; i < points.Length - 1; i++)
-            {
-                mesh.Faces.AddFace(0, i, i + 1);
-            }
-
-            // Try to fix the mesh if it's invalid
-            if (!mesh.IsValid)
-            {
-                // Try to repair the mesh
-                mesh.Vertices.CombineIdentical(true, true);
-                mesh.Vertices.CullUnused();
-                mesh.Faces.CullDegenerateFaces();
-            }
-
-            if (mesh.IsValid)
-            {
-                mesh.Normals.ComputeNormals();
-                mesh.Compact();
-                return mesh;
-            }
-            else
-            {
-                // Final attempt: create a simple triangle from first 3 points
-                var simpleMesh = new Mesh();
-                if (points.Length >= 3)
-                {
-                    simpleMesh.Vertices.Add(points[0]);
-                    simpleMesh.Vertices.Add(points[1]);
-                    simpleMesh.Vertices.Add(points[2]);
-                    simpleMesh.Faces.AddFace(0, 1, 2);
-                    
-                    if (simpleMesh.IsValid)
-                    {
-                        simpleMesh.Normals.ComputeNormals();
-                        simpleMesh.Compact();
-                        return simpleMesh;
-                    }
-                }
-                
-                _lastDebugInfo += $", Triangulated mesh: invalid result, points={points.Length}";
-                return null;
-            }
-        }
-        catch (Exception ex)
-        {
-            _lastDebugInfo += $", Triangulated mesh error: {ex.Message}";
-            return null;
-        }
-    }
-
-    private Mesh MergeAndCleanMesh(Mesh mesh)
-    {
-        try
-        {
-            if (mesh == null || !mesh.IsValid)
-                return mesh;
-
-            // Merge coincident vertices
-            mesh.Vertices.CombineIdentical(true, true);
-            
-            // Remove unused vertices
-            mesh.Vertices.CullUnused();
-            
-            // Recompute normals
-            mesh.Normals.ComputeNormals();
-            
-            // Compact the mesh
-            mesh.Compact();
-            
-            return mesh;
-        }
-        catch
-        {
-            return mesh; // Return original mesh if cleaning fails
-        }
-    }
-
-    private Mesh CreateSimpleBoxMesh(Polyline polyline, double height)
-    {
-        try
-        {
-            // Calculate bounding box manually
-            var points = polyline.ToArray();
-            if (points.Length < 3)
+            var breps = Brep.CreatePlanarBreps(curve);
+            if (breps == null || breps.Length == 0)
                 return null;
 
-            double minX = points[0].X, maxX = points[0].X;
-            double minY = points[0].Y, maxY = points[0].Y;
-
-            foreach (var pt in points)
+            // Extrude the surface to create the building volume
+            var extrusion = breps[0].Faces[0].CreateExtrusion(new Line(Point3d.Origin, new Vector3d(0, 0, height)).ToNurbsCurve(), true);
+            if (extrusion != null)
             {
-                minX = Math.Min(minX, pt.X);
-                maxX = Math.Max(maxX, pt.X);
-                minY = Math.Min(minY, pt.Y);
-                maxY = Math.Max(maxY, pt.Y);
+                extrusion.Faces.SplitKinkyFaces();
+                return extrusion;
             }
 
-            // Create a simple box mesh
-            var box = new Box(new Plane(new Point3d((minX + maxX) / 2, (minY + maxY) / 2, 0), Vector3d.ZAxis),
-                             new Interval(minX, maxX),
-                             new Interval(minY, maxY),
-                             new Interval(0, height));
-
-            var mesh = Mesh.CreateFromBox(box, 1, 1, 1);
-            
-            if (mesh != null && mesh.IsValid)
-            {
-                mesh.Normals.ComputeNormals();
-                mesh.Compact();
-                return mesh;
-            }
-
-            return null;
+            return breps[0]; // Return the planar brep if extrusion fails
         }
         catch
         {
@@ -739,134 +521,7 @@ out geom;";
         }
     }
 
-    private Mesh CreateMinimalBuildingMesh(Polyline polyline, double height)
-    {
-        try
-        {
-            // Create a proper building mesh using all available points
-            var points = polyline.ToArray();
-            if (points.Length < 3)
-                return null;
 
-            // If we have 4 or more points, create a proper building
-            if (points.Length >= 4)
-            {
-                // Create a proper building mesh using all points
-                var mesh = new Mesh();
-                
-                // Add bottom vertices
-                foreach (var pt in points)
-                {
-                    mesh.Vertices.Add(pt);
-                }
-                
-                // Add top vertices
-                foreach (var pt in points)
-                {
-                    mesh.Vertices.Add(new Point3d(pt.X, pt.Y, pt.Z + height));
-                }
-
-                int pointCount = points.Length;
-                
-                // Add bottom face (triangulated)
-                for (int i = 1; i < pointCount - 1; i++)
-                {
-                    mesh.Faces.AddFace(0, i, i + 1);
-                }
-                
-                // Add top face (triangulated, reversed winding)
-                for (int i = 1; i < pointCount - 1; i++)
-                {
-                    mesh.Faces.AddFace(pointCount, pointCount + i + 1, pointCount + i);
-                }
-                
-                // Add side faces
-                for (int i = 0; i < pointCount; i++)
-                {
-                    int next = (i + 1) % pointCount;
-                    mesh.Faces.AddFace(
-                        i,                    // current bottom
-                        next,                 // next bottom
-                        pointCount + next,    // next top
-                        pointCount + i        // current top
-                    );
-                }
-
-                if (mesh.IsValid)
-                {
-                    mesh.Normals.ComputeNormals();
-                    mesh.Compact();
-                    return mesh;
-                }
-            }
-
-            // Fallback to simple box if we can't create a proper building
-            return CreateSimpleBoxMesh(polyline, height);
-        }
-        catch
-        {
-            return CreateSimpleBoxMesh(polyline, height);
-        }
-    }
-
-    private Mesh CreateMinimalFlatMesh(Polyline polyline)
-    {
-        try
-        {
-            // Create a proper flat mesh using all available points
-            var points = polyline.ToArray();
-            if (points.Length < 3)
-                return null;
-
-            // If we have 4 or more points, create a proper polygon
-            if (points.Length >= 4)
-            {
-                var mesh = new Mesh();
-                
-                // Add all vertices
-                foreach (var pt in points)
-                {
-                    mesh.Vertices.Add(pt);
-                }
-                
-                // Create triangulated face for polygon
-                for (int i = 1; i < points.Length - 1; i++)
-                {
-                    mesh.Faces.AddFace(0, i, i + 1);
-                }
-
-                if (mesh.IsValid)
-                {
-                    mesh.Normals.ComputeNormals();
-                    mesh.Compact();
-                    return mesh;
-                }
-            }
-
-            // Fallback to triangle for 3 points
-            if (points.Length == 3)
-            {
-                var mesh = new Mesh();
-                mesh.Vertices.Add(points[0]);
-                mesh.Vertices.Add(points[1]);
-                mesh.Vertices.Add(points[2]);
-                mesh.Faces.AddFace(0, 1, 2);
-
-                if (mesh.IsValid)
-                {
-                    mesh.Normals.ComputeNormals();
-                    mesh.Compact();
-                    return mesh;
-                }
-            }
-
-            return null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
 
     private string GetBuildingHeight(OSMElement element)
     {
@@ -950,22 +605,22 @@ out geom;";
     private class BuildingInfo
     {
         public Curve Outline { get; set; }
-        public Mesh Mesh { get; set; }
+        public Brep Brep { get; set; }
         public double Height { get; set; }
         public string Metadata { get; set; }
     }
 
     private class BuildingData
     {
-        public List<Mesh> Meshes { get; set; } = new List<Mesh>();
+        public List<Brep> Breps { get; set; } = new List<Brep>();
         public List<double> Heights { get; set; } = new List<double>();
-        public int Count => Meshes.Count;
+        public int Count => Breps.Count;
 
         public void Add(BuildingInfo building)
         {
-            if (building?.Mesh != null)
+            if (building?.Brep != null)
             {
-                Meshes.Add(building.Mesh);
+                Breps.Add(building.Brep);
                 Heights.Add(building.Height);
             }
         }

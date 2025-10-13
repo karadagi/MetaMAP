@@ -50,6 +50,7 @@ C:\Users\ilker\Desktop\MetaMAP\obj\Release\net8.0-windows\MetaMAP.GeneratedMSBui
 C:\Users\ilker\Desktop\MetaMAP\obj\Release\net8.0-windows\MetaMAP.AssemblyInfoInputs.cache
 C:\Users\ilker\Desktop\MetaMAP\obj\Release\net8.0-windows\MetaMAP.AssemblyInfo.cs
 C:\Users\ilker\Desktop\MetaMAP\obj\Release\net8.0-windows\MetaMAP.csproj.CoreCompileInputs.cache
+C:\Users\ilker\Desktop\MetaMAP\obj\Release\net8.0-windows\MetaMAP.sourcelink.json
 C:\Users\ilker\Desktop\MetaMAP\obj\Release\net8.0-windows\MetaMAP.csproj.Up2Date
 C:\Users\ilker\Desktop\MetaMAP\obj\Release\net8.0-windows\MetaMAP.dll
 C:\Users\ilker\Desktop\MetaMAP\obj\Release\net8.0-windows\refint\MetaMAP.dll
