@@ -75,7 +75,7 @@ namespace MetaMap
                 _statusMessage = "Starting update...";
                 
                 // Run update asynchronously to avoid freezing UI
-                string updateUrl = "https://github.com/karadagi/MetaMAP/raw/main/bin/Debug/net8.0-windows/MetaMAP_Manual_New.zip\n";
+                string updateUrl = "https://github.com/karadagi/MetaMAP/raw/main/bin/Debug/net8.0-windows/MetaMAP_Manual_New.zip";
                 Task.Run(() => PerformUpdate(updateUrl));
             }
 
