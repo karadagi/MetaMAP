@@ -72,7 +72,7 @@ namespace MetaMap
             if (update && !_isUpdating && _statusMessage == "Idle")
             {
                 _isUpdating = true;
-                _statusMessage = "Starting update...";
+                _statusMessage = "Checking update...";
                 
                 // Run update asynchronously to avoid freezing UI
                 string updateUrl = "https://github.com/karadagi/MetaMAP/raw/main/bin/Debug/net8.0-windows/MetaMAP_Manual_New.zip";
@@ -215,7 +215,7 @@ namespace MetaMap
                 if (File.Exists(tempFile))
                     File.Delete(tempFile);
 
-                _statusMessage = "Success! Please restart Rhino to apply changes.";
+                _statusMessage = "Success! Please restart Rhino to apply changes."+ $"You have the latest version ({remoteVersion}), now.";
             }
             catch (Exception ex)
             {
