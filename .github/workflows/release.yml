@@ -2,8 +2,11 @@ name: Build and Release MetaMAP
 
 on:
   push:
-    tags:
-      - 'v*.*.*'  # Triggers on version tags like v0.0.29
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
 
 jobs:
   build:
@@ -24,40 +27,38 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
       
-    - name: Get version from tag
+    - name: Get version from csproj
       id: get_version
       run: |
-        $version = "${{ github.ref_name }}".TrimStart('v')
+        [xml]$csproj = Get-Content "MetaMAP.csproj"
+        $version = $csproj.Project.PropertyGroup.Version | Select-Object -First 1
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "TAG=v$version" >> $env:GITHUB_OUTPUT
       shell: pwsh
       
+    - name: Check if release exists
+      id: check_release
+      run: |
+        $tag = "v${{ steps.get_version.outputs.VERSION }}"
+        $exists = gh release view $tag 2>&1
+        if ($LASTEXITCODE -eq 0) {
+          echo "EXISTS=true" >> $env:GITHUB_OUTPUT
+        } else {
+          echo "EXISTS=false" >> $env:GITHUB_OUTPUT
+        }
+      shell: pwsh
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
     - name: Create Release
+      if: steps.check_release.outputs.EXISTS == 'false'
       id: create_release
-      uses: actions/create-release@v1
+      run: |
+        $tag = "v${{ steps.get_version.outputs.VERSION }}"
+        gh release create $tag `
+          --title "MetaMAP v${{ steps.get_version.outputs.VERSION }}" `
+          --notes "MetaMAP version ${{ steps.get_version.outputs.VERSION }}`n`n## Installation`n1. Download MetaMAP_Manual_New.zip`n2. Extract all files to your Grasshopper Components folder`n3. Restart Rhino" `
+          ./bin/Release/net8.0-windows/MetaMAP_Manual_New.zip
+      shell: pwsh
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: MetaMAP ${{ github.ref_name }}
-        draft: false
-        prerelease: false
-        body: |
-          MetaMAP version ${{ steps.get_version.outputs.VERSION }}
-          
-          ## Installation
-          1. Download `MetaMAP_Manual_New.zip`
-          2. Extract all files to your Grasshopper Components folder
-          3. Restart Rhino
-          
-          ## What's New
-          - See commit history for changes
-        
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./bin/Release/net8.0-windows/MetaMAP_Manual_New.zip
-        asset_name: MetaMAP_Manual_New.zip
-        asset_content_type: application/zip
