@@ -5,7 +5,7 @@
   },
   "projects": {
     "C:\\Users\\ilker\\Desktop\\MetaMAP\\MetaMAP.csproj": {
-      "version": "0.0.20",
+      "version": "0.0.29",
       "restore": {
         "projectUniqueName": "C:\\Users\\ilker\\Desktop\\MetaMAP\\MetaMAP.csproj",
         "projectName": "MetaMAP",
@@ -63,25 +63,17 @@
               "target": "Package",
               "version": "[8.21.25188.17001, )"
             },
-            "MIConvexHull": {
-              "target": "Package",
-              "version": "[1.0.20, )"
-            },
             "Newtonsoft.Json": {
               "target": "Package",
               "version": "[13.0.3, )"
             },
             "System.Drawing.Common": {
               "target": "Package",
-              "version": "[9.0.7, )"
-            },
-            "System.Net.Http": {
-              "target": "Package",
-              "version": "[4.3.4, )"
+              "version": "[8.0.0, )"
             },
             "System.Resources.Extensions": {
               "target": "Package",
-              "version": "[9.0.7, )"
+              "version": "[8.0.0, )"
             }
           },
           "imports": [

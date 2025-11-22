@@ -32,25 +32,25 @@ public class MetaBuildingCMP : GH_Component
     /// <summary>
     ///     Provides an Icon for the component.
     /// </summary>
-        protected override Bitmap Icon
+    protected override Bitmap Icon
+    {
+        get
         {
-            get
-            {
-                if (!PlatformUtils.IsWindows())
-                    return null;
+            if (!PlatformUtils.IsWindows())
+                return null;
 
-                var iconBytes = Resources.MetaBuilding;
-                if (iconBytes != null)
-                    // Convert byte array to a MemoryStream
-                    using (var ms = new MemoryStream(iconBytes))
-                    {
-                        // Return the Bitmap from the stream
-                        return new Bitmap(ms);
-                    }
+            var iconBytes = Resources.MetaBuilding;
+            if (iconBytes != null)
+                // Convert byte array to a MemoryStream
+                using (var ms = new MemoryStream(iconBytes))
+                {
+                    // Return the Bitmap from the stream
+                    return new Bitmap(ms);
+                }
 
-                return null; // Fallback in case iconBytes is null
-            }
+            return null; // Fallback in case iconBytes is null
         }
+    }
 
     /// <summary>
     ///     Gets the unique ID for this component. Do not change this ID after release.
@@ -64,26 +64,24 @@ public class MetaBuildingCMP : GH_Component
     {
         pManager.AddNumberParameter("Latitude", "Lat", "Latitude for OpenStreetMap query. Default: 33.775678 (Atlanta, GA)", GH_ParamAccess.item);
         pManager.AddNumberParameter("Longitude", "Lon", "Longitude for OpenStreetMap query. Default: -84.395133 (Atlanta, GA)", GH_ParamAccess.item);
-        pManager.AddNumberParameter("Radius", "R", "Search radius in meters for building extraction. Default: 100m", GH_ParamAccess.item);
+        pManager.AddNumberParameter("Radius", "R", "Search radius in meters for building extraction. Default: 200m", GH_ParamAccess.item);
         pManager.AddMeshParameter("Terrain Mesh", "TM", "Optional terrain mesh to align buildings with terrain elevation", GH_ParamAccess.item);
-        pManager.AddBooleanParameter("Run", "Run", "Execute the OpenStreetMap query and processing", GH_ParamAccess.item);
-        
+
         pManager[0].Optional = true;
         pManager[1].Optional = true;
         pManager[2].Optional = true;
         pManager[3].Optional = true;
-        pManager[4].Optional = true;
     }
 
     /// <summary>
     ///     Registers all the output parameters for this component.
     /// </summary>
-        protected override void RegisterOutputParams(GH_OutputParamManager pManager)
-        {
-            pManager.AddBrepParameter("Building Breps", "BB", "3D building Breps from OpenStreetMap", GH_ParamAccess.list);
-            pManager.AddNumberParameter("Building Heights", "BH", "Building heights in meters", GH_ParamAccess.list);
-            pManager.AddTextParameter("Status", "S", "Processing status and information", GH_ParamAccess.item);
-        }
+    protected override void RegisterOutputParams(GH_OutputParamManager pManager)
+    {
+        pManager.AddBrepParameter("Building Breps", "BB", "3D building Breps from OpenStreetMap", GH_ParamAccess.list);
+        pManager.AddNumberParameter("Building Heights", "BH", "Building heights in meters", GH_ParamAccess.list);
+        pManager.AddTextParameter("Status", "S", "Processing status and information", GH_ParamAccess.item);
+    }
 
     /// <summary>
     ///     This is the method that actually does the work.
@@ -92,8 +90,7 @@ public class MetaBuildingCMP : GH_Component
     protected override void SolveInstance(IGH_DataAccess DA)
     {
         // Default values
-        double radius = 100.0; // Default 100 meters
-        bool run = false;
+        double radius = 200.0; // Default 100 meters
         Mesh terrainMesh = null;
 
         // Get input values (with defaults if not provided)
@@ -103,14 +100,13 @@ public class MetaBuildingCMP : GH_Component
         DA.GetData(1, ref lon);
         DA.GetData(2, ref radius);
         DA.GetData(3, ref terrainMesh);
-        DA.GetData(4, ref run);
 
-        if (!run)
+        // Check for NaN (signal from MetaFetch that no value is selected)
+        if (double.IsNaN(lat) || double.IsNaN(lon))
         {
             DA.SetDataList(0, new List<Brep>());
             DA.SetDataList(1, new List<double>());
-            string terrainStatus = terrainMesh != null ? $" with terrain mesh ({terrainMesh.Vertices.Count} vertices)" : " (no terrain mesh)";
-            DA.SetData(2, $"MetaBuilding ready{terrainStatus} - Location: {lat:F6}, {lon:F6}, Radius: {radius}m. Set 'Run' to true to execute.");
+            DA.SetData(2, "Waiting for valid coordinates...");
             return;
         }
 
@@ -127,7 +123,7 @@ public class MetaBuildingCMP : GH_Component
             }
 
             // Validate radius
-            if (radius <= 0 || radius > 1000)
+            if (radius <= 0 || radius > 5000)
             {
                 throw new Exception("Radius must be between 1 and 1000 meters");
             }
@@ -139,13 +135,13 @@ public class MetaBuildingCMP : GH_Component
 
             // Fetch data from OpenStreetMap with timeout
             var osmData = FetchOSMDataSync(overpassQuery);
-            
+
             string terrainStatus = terrainMesh != null ? $"Terrain mesh: {terrainMesh.Vertices.Count} vertices" : "No terrain mesh provided";
             DA.SetData(2, $"Processing building geometry... Raw data length: {osmData?.Length ?? 0} characters. {terrainStatus}");
-            
+
             // Parse and convert to Rhino geometry
             var buildings = ParseOSMBuildings(osmData, terrainMesh);
-            
+
             // Output results (like the old version)
             var brepList = new List<Brep>();
             var heightList = new List<double>();
@@ -215,7 +211,7 @@ out geom;";
 
                 var content = new StringContent(query, System.Text.Encoding.UTF8, "application/x-www-form-urlencoded");
                 var response = httpClient.PostAsync(endpoint, content).Result;
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     var result = response.Content.ReadAsStringAsync().Result;
@@ -238,20 +234,20 @@ out geom;";
     private BuildingData ParseOSMBuildings(string jsonData, Mesh terrainMesh)
     {
         var buildings = new BuildingData();
-        
+
         try
         {
             var osmResponse = JsonConvert.DeserializeObject<OSMResponse>(jsonData);
-            
+
             int totalElements = osmResponse?.Elements?.Count ?? 0;
             int buildingWays = 0;
             int validBuildings = 0;
             int skippedValidation = 0;
-            
+
             foreach (var element in osmResponse.Elements)
             {
-                if ((element.Type == "way" || element.Type == "relation") && 
-                    element.Geometry != null && element.Tags != null && 
+                if ((element.Type == "way" || element.Type == "relation") &&
+                    element.Geometry != null && element.Tags != null &&
                     (element.Tags.ContainsKey("building") || element.Tags.ContainsKey("building:part") || element.Tags.ContainsKey("building:use")))
                 {
                     buildingWays++;
@@ -273,15 +269,15 @@ out geom;";
                     }
                 }
             }
-            
+
             // Count skipped elements from the first loop
             int skippedGeometry = 0;
-            
+
             // Count geometry issues from elements that weren't processed
             foreach (var element in osmResponse.Elements)
             {
-                if ((element.Type == "way" || element.Type == "relation") && 
-                    element.Tags != null && 
+                if ((element.Type == "way" || element.Type == "relation") &&
+                    element.Tags != null &&
                     (element.Tags.ContainsKey("building") || element.Tags.ContainsKey("building:part") || element.Tags.ContainsKey("building:use")))
                 {
                     if (element.Geometry == null || element.Geometry.Count < 3)
@@ -290,9 +286,9 @@ out geom;";
                     }
                 }
             }
-            
+
             _lastDebugInfo += $"Total elements: {totalElements}, Building ways: {buildingWays}, Valid buildings: {validBuildings}, Skipped (geometry): {skippedGeometry}, Skipped (validation): {skippedValidation}";
-            
+
             // Debug: Log terrain mesh status
             if (terrainMesh != null)
             {
@@ -302,7 +298,7 @@ out geom;";
             {
                 _lastDebugInfo += ", No terrain mesh";
             }
-            
+
             // Add summary of validation failures
             if (skippedValidation > 0)
             {
@@ -332,23 +328,23 @@ out geom;";
             double height = GetBuildingHeightInMeters(element);
             if (height <= 0)
                 height = 6.0; // Default height
-            
+
             // Convert OSM coordinates to Rhino points with proper scaling
             var points = new List<Point3d>();
             var terrainElevations = new List<double>();
-            
+
             // Use the global center point as reference (passed from SolveInstance)
             // This ensures all buildings are positioned relative to the search center
             double baseLat = _currentCenterLat;
             double baseLon = _currentCenterLon;
-            
+
             // First pass: collect all points and terrain elevations
             foreach (var coord in element.Geometry)
             {
                 // Convert lat/lon to local coordinates with proper scaling
                 double x = (coord.Lon - baseLon) * 111320.0 * Math.Cos(baseLat * Math.PI / 180.0);
                 double y = (coord.Lat - baseLat) * 110540.0;
-                
+
                 // Get terrain elevation at this point if terrain mesh is provided
                 double z = 0.0;
                 if (terrainMesh != null && terrainMesh.IsValid && terrainMesh.Vertices.Count > 0 && terrainMesh.Faces.Count > 0)
@@ -358,7 +354,7 @@ out geom;";
                         var queryPoint = new Point3d(x, y, 0);
                         var closestPoint = terrainMesh.ClosestPoint(queryPoint);
                         z = closestPoint.Z;
-                        
+
                         // Validate the terrain elevation result
                         if (double.IsNaN(z) || double.IsInfinity(z))
                         {
@@ -370,24 +366,24 @@ out geom;";
                         z = 0.0; // Fallback to Z=0 if terrain calculation fails
                     }
                 }
-                
+
                 points.Add(new Point3d(x, y, 0)); // Keep all points at Z=0 initially
                 terrainElevations.Add(z);
             }
-            
+
             // Calculate average terrain elevation for this building
             double averageTerrainZ = 0.0;
             if (terrainElevations.Count > 0)
             {
                 averageTerrainZ = terrainElevations.Average();
             }
-            
+
             // Second pass: position all points at the average terrain elevation
             for (int i = 0; i < points.Count; i++)
             {
                 points[i] = new Point3d(points[i].X, points[i].Y, averageTerrainZ);
             }
-            
+
             // Debug: Log average terrain elevation for this building
             if (terrainElevations.Count > 0)
             {
@@ -426,7 +422,7 @@ out geom;";
 
             // Create simple 2D projection mesh (like the old working version)
             var brep = CreateBuildingBrep(polyline, height);
-            
+
             // Validate mesh
             if (brep == null || !brep.IsValid)
             {
@@ -467,7 +463,7 @@ out geom;";
                     return height;
                 }
             }
-            
+
             // Try building levels (assume 3m per level)
             if (element.Tags.ContainsKey("building:levels"))
             {
@@ -477,7 +473,7 @@ out geom;";
                 }
             }
         }
-        
+
         // Default height based on building type
         var buildingType = GetBuildingType(element).ToLower();
         return buildingType switch
@@ -552,13 +548,13 @@ out geom;";
         {
             // Create a point at the given X,Y coordinates
             var queryPoint = new Point3d(x, y, 0);
-            
+
             // Find the closest point on the terrain mesh
             var closestPoint = terrainMesh.ClosestPoint(queryPoint);
-            
+
             // Debug: Log terrain elevation found
             _lastDebugInfo += $", Terrain Z={closestPoint.Z:F2}";
-            
+
             // Return the Z coordinate of the closest point
             return closestPoint.Z;
         }

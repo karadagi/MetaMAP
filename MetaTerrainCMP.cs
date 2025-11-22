@@ -62,17 +62,15 @@ public class MetaTerrainCMP : GH_Component
     {
         pManager.AddNumberParameter("Latitude", "Lat", "Latitude for terrain query. Default: 33.775678 (Atlanta, GA)", GH_ParamAccess.item);
         pManager.AddNumberParameter("Longitude", "Lon", "Longitude for terrain query. Default: -84.395133 (Atlanta, GA)", GH_ParamAccess.item);
-        pManager.AddNumberParameter("Radius", "R", "Search radius in meters for terrain extraction. Default: 100m", GH_ParamAccess.item);
+        pManager.AddNumberParameter("Radius", "R", "Search radius in meters for terrain extraction. Default: 300m", GH_ParamAccess.item);
         pManager.AddIntegerParameter("Grid Resolution", "GR", "Grid resolution for elevation sampling. Default: 10 (10x10 grid)", GH_ParamAccess.item);
         pManager.AddBooleanParameter("Show Points", "SP", "Show/hide terrain elevation points. Default: true", GH_ParamAccess.item);
-        pManager.AddBooleanParameter("Run", "Run", "Execute the terrain data query and processing", GH_ParamAccess.item);
-        
+
         pManager[0].Optional = true;
         pManager[1].Optional = true;
         pManager[2].Optional = true;
         pManager[3].Optional = true;
         pManager[4].Optional = true;
-        pManager[5].Optional = true;
     }
 
     /// <summary>
@@ -92,10 +90,10 @@ public class MetaTerrainCMP : GH_Component
     protected override void SolveInstance(IGH_DataAccess DA)
     {
         // Default values
-        double radius = 100.0; // Default 100 meters
+        double radius = 300.0; // Default 100 meters
         int gridResolution = 10; // Default 10x10 grid
         bool showPoints = false; // Default show points
-        bool run = false;
+
 
         // Get input values (with defaults if not provided)
         double lat = 33.775678; // Default Atlanta latitude
@@ -105,14 +103,14 @@ public class MetaTerrainCMP : GH_Component
         DA.GetData(2, ref radius);
         DA.GetData(3, ref gridResolution);
         DA.GetData(4, ref showPoints);
-        DA.GetData(5, ref run);
 
-        if (!run)
+        // Check for NaN (signal from MetaFetch that no value is selected)
+        if (double.IsNaN(lat) || double.IsNaN(lon))
         {
             DA.SetData(0, null);
             DA.SetDataList(1, showPoints ? new List<Point3d>() : null);
             DA.SetDataList(2, showPoints ? new List<double>() : null);
-            DA.SetData(3, $"MetaTERRAIN ready - Location: {lat:F6}, {lon:F6}, Radius: {radius}m, Grid: {gridResolution}x{gridResolution}. Points: {(showPoints ? "Visible" : "Hidden")}. Set 'Run' to true to execute.");
+            DA.SetData(3, "Waiting for valid coordinates...");
             return;
         }
 
@@ -129,7 +127,7 @@ public class MetaTerrainCMP : GH_Component
             }
 
             // Validate radius
-            if (radius <= 0 || radius > 1000)
+            if (radius <= 0 || radius > 5000)
             {
                 throw new Exception("Radius must be between 1 and 1000 meters");
             }
@@ -144,10 +142,10 @@ public class MetaTerrainCMP : GH_Component
 
             // Generate grid points for elevation sampling
             var gridPoints = GenerateGridPoints(lat, lon, radius, gridResolution);
-            
+
             // Fetch elevation data from multiple sources
             var elevationData = FetchElevationData(gridPoints);
-            
+
             DA.SetData(3, $"Processing terrain mesh... Found {elevationData.Count} elevation points");
 
             // Center terrain at Z=0 by subtracting minimum elevation
@@ -160,14 +158,14 @@ public class MetaTerrainCMP : GH_Component
                     ed.Elevation = ed.Elevation - minElevation;
                 }
             }
-            
+
             // Create terrain mesh from elevation data (after centering)
             var terrainMesh = CreateTerrainMesh(elevationData, lat, lon, radius);
-            
+
             // Output results
             var elevationPoints = elevationData.Select(ed => ed.Point).ToList();
             var elevationValues = elevationData.Select(ed => ed.Elevation).ToList();
-            
+
             DA.SetData(0, terrainMesh);
             DA.SetDataList(1, showPoints ? elevationPoints : null);
             DA.SetDataList(2, showPoints ? elevationValues : null);
@@ -185,16 +183,16 @@ public class MetaTerrainCMP : GH_Component
     private List<Point3d> GenerateGridPoints(double centerLat, double centerLon, double radius, int gridResolution)
     {
         var points = new List<Point3d>();
-        
+
         // Convert radius to degrees (approximate)
         double latDelta = radius / 111000.0; // 1 degree ≈ 111km
         double lonDelta = radius / (111000.0 * Math.Cos(centerLat * Math.PI / 180.0));
-        
+
         double minLat = centerLat - latDelta;
         double maxLat = centerLat + latDelta;
         double minLon = centerLon - lonDelta;
         double maxLon = centerLon + lonDelta;
-        
+
         // Generate grid points
         for (int i = 0; i < gridResolution; i++)
         {
@@ -202,22 +200,22 @@ public class MetaTerrainCMP : GH_Component
             {
                 double lat = minLat + (maxLat - minLat) * i / (gridResolution - 1);
                 double lon = minLon + (maxLon - minLon) * j / (gridResolution - 1);
-                
+
                 // Convert to local coordinates
                 double x = (lon - _currentCenterLon) * 111320.0 * Math.Cos(_currentCenterLat * Math.PI / 180.0);
                 double y = (lat - _currentCenterLat) * 110540.0;
-                
+
                 points.Add(new Point3d(x, y, 0)); // Z will be set by elevation data
             }
         }
-        
+
         return points;
     }
 
     private List<ElevationData> FetchElevationData(List<Point3d> gridPoints)
     {
         var elevationData = new List<ElevationData>();
-        
+
         try
         {
             // Try multiple elevation data sources
@@ -250,50 +248,50 @@ public class MetaTerrainCMP : GH_Component
             elevationData = GenerateSyntheticTerrain(gridPoints);
             _lastDebugInfo = $"Fallback synthetic terrain: {ex.Message}";
         }
-        
+
         return elevationData;
     }
 
     private List<ElevationData> FetchFromOpenElevationAPI(List<Point3d> gridPoints)
     {
         var elevationData = new List<ElevationData>();
-        
+
         try
         {
             using var httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(30);
-            
+
             // Prepare coordinates for OpenElevation API
-            var coordinates = gridPoints.Select(p => 
+            var coordinates = gridPoints.Select(p =>
             {
                 // Convert back to lat/lon
                 double lat = _currentCenterLat + (p.Y / 110540.0);
                 double lon = _currentCenterLon + (p.X / (111320.0 * Math.Cos(_currentCenterLat * Math.PI / 180.0)));
                 return new { latitude = lat, longitude = lon };
             }).ToList();
-            
+
             var requestBody = new
             {
                 locations = coordinates
             };
-            
+
             var json = JsonConvert.SerializeObject(requestBody);
             var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-            
+
             var response = httpClient.PostAsync("https://api.open-elevation.com/api/v1/lookup", content).Result;
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var responseContent = response.Content.ReadAsStringAsync().Result;
                 var result = JsonConvert.DeserializeObject<OpenElevationResponse>(responseContent);
-                
+
                 if (result?.Results != null)
                 {
                     for (int i = 0; i < result.Results.Count && i < gridPoints.Count; i++)
                     {
                         var point = gridPoints[i];
                         var elevation = result.Results[i].Elevation;
-                        
+
                         elevationData.Add(new ElevationData
                         {
                             Point = new Point3d(point.X, point.Y, elevation),
@@ -308,20 +306,20 @@ public class MetaTerrainCMP : GH_Component
         {
             // Return empty list if API fails
         }
-        
+
         return elevationData;
     }
 
     private List<ElevationData> FetchFromOSMContours(List<Point3d> gridPoints)
     {
         var elevationData = new List<ElevationData>();
-        
+
         try
         {
             // Generate Overpass query for contour lines
             var bounds = CalculateBounds(gridPoints);
             string overpassQuery = GenerateContourQuery(bounds.South, bounds.West, bounds.North, bounds.East);
-            
+
             var osmData = FetchOSMDataSync(overpassQuery);
             if (!string.IsNullOrEmpty(osmData))
             {
@@ -333,7 +331,7 @@ public class MetaTerrainCMP : GH_Component
         {
             // Return empty list if OSM query fails
         }
-        
+
         return elevationData;
     }
 
@@ -341,7 +339,7 @@ public class MetaTerrainCMP : GH_Component
     {
         var elevationData = new List<ElevationData>();
         var random = new Random(42); // Fixed seed for reproducible results
-        
+
         foreach (var point in gridPoints)
         {
             // Generate synthetic terrain with some variation
@@ -349,9 +347,9 @@ public class MetaTerrainCMP : GH_Component
             double baseElevation = 100.0; // Base elevation
             double variation = Math.Sin(distance / 50.0) * 10.0; // Terrain variation
             double noise = (random.NextDouble() - 0.5) * 5.0; // Random noise
-            
+
             double elevation = baseElevation + variation + noise;
-            
+
             elevationData.Add(new ElevationData
             {
                 Point = new Point3d(point.X, point.Y, elevation),
@@ -359,7 +357,7 @@ public class MetaTerrainCMP : GH_Component
                 Source = "Synthetic"
             });
         }
-        
+
         return elevationData;
     }
 
@@ -391,7 +389,7 @@ out geom;";
 
                 var content = new StringContent(query, System.Text.Encoding.UTF8, "application/x-www-form-urlencoded");
                 var response = httpClient.PostAsync(endpoint, content).Result;
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     var result = response.Content.ReadAsStringAsync().Result;
@@ -413,11 +411,11 @@ out geom;";
     private List<ContourLine> ParseOSMContours(string jsonData)
     {
         var contours = new List<ContourLine>();
-        
+
         try
         {
             var osmResponse = JsonConvert.DeserializeObject<OSMResponse>(jsonData);
-            
+
             foreach (var element in osmResponse.Elements)
             {
                 if (element.Type == "way" && element.Geometry != null && element.Tags != null)
@@ -429,7 +427,7 @@ out geom;";
                         {
                             elevation = ele;
                         }
-                        
+
                         var points = new List<Point3d>();
                         foreach (var coord in element.Geometry)
                         {
@@ -437,7 +435,7 @@ out geom;";
                             double y = (coord.Lat - _currentCenterLat) * 110540.0;
                             points.Add(new Point3d(x, y, elevation));
                         }
-                        
+
                         if (points.Count > 1)
                         {
                             contours.Add(new ContourLine
@@ -454,18 +452,18 @@ out geom;";
         {
             // Return empty list if parsing fails
         }
-        
+
         return contours;
     }
 
     private List<ElevationData> InterpolateElevationsFromContours(List<Point3d> gridPoints, List<ContourLine> contours)
     {
         var elevationData = new List<ElevationData>();
-        
+
         foreach (var point in gridPoints)
         {
             double elevation = InterpolateElevationAtPoint(point, contours);
-            
+
             elevationData.Add(new ElevationData
             {
                 Point = new Point3d(point.X, point.Y, elevation),
@@ -473,7 +471,7 @@ out geom;";
                 Source = "OSM Contours"
             });
         }
-        
+
         return elevationData;
     }
 
@@ -481,11 +479,11 @@ out geom;";
     {
         if (contours.Count == 0)
             return 0;
-        
+
         // Simple nearest neighbor interpolation
         double minDistance = double.MaxValue;
         double elevation = 0;
-        
+
         foreach (var contour in contours)
         {
             foreach (var contourPoint in contour.Points)
@@ -498,7 +496,7 @@ out geom;";
                 }
             }
         }
-        
+
         return elevation;
     }
 
@@ -506,18 +504,18 @@ out geom;";
     {
         if (points.Count == 0)
             return new Bounds { South = 0, West = 0, North = 0, East = 0 };
-        
+
         double minX = points.Min(p => p.X);
         double maxX = points.Max(p => p.X);
         double minY = points.Min(p => p.Y);
         double maxY = points.Max(p => p.Y);
-        
+
         // Convert back to lat/lon
         double south = _currentCenterLat + (minY / 110540.0);
         double north = _currentCenterLat + (maxY / 110540.0);
         double west = _currentCenterLon + (minX / (111320.0 * Math.Cos(_currentCenterLat * Math.PI / 180.0)));
         double east = _currentCenterLon + (maxX / (111320.0 * Math.Cos(_currentCenterLat * Math.PI / 180.0)));
-        
+
         return new Bounds { South = south, West = west, North = north, East = east };
     }
 
@@ -525,21 +523,21 @@ out geom;";
     {
         if (elevationData.Count < 3)
             return null;
-        
+
         try
         {
             // Create a mesh from the elevation points using Delaunay triangulation
             var points = elevationData.Select(ed => ed.Point).ToArray();
-            
+
             // Use Rhino's mesh creation from points
             var mesh = new Mesh();
-            
+
             // Add vertices
             foreach (var point in points)
             {
                 mesh.Vertices.Add(point);
             }
-            
+
             // Create faces using simple grid triangulation
             int gridSize = (int)Math.Sqrt(elevationData.Count);
             if (gridSize > 1)
@@ -552,7 +550,7 @@ out geom;";
                         int idx2 = i * gridSize + (j + 1);
                         int idx3 = (i + 1) * gridSize + j;
                         int idx4 = (i + 1) * gridSize + (j + 1);
-                        
+
                         if (idx4 < points.Length)
                         {
                             // Create two triangles for each quad
@@ -562,14 +560,14 @@ out geom;";
                     }
                 }
             }
-            
+
             if (mesh.Faces.Count > 0)
             {
                 mesh.Normals.ComputeNormals();
                 mesh.Compact();
                 return mesh;
             }
-            
+
             return null;
         }
         catch

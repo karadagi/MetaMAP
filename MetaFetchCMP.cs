@@ -10,6 +10,7 @@ using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Linq;
+
 namespace MetaMap
 {
     public class MetaFetchCMP : GH_Component
@@ -57,11 +58,12 @@ namespace MetaMap
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             bool show = false;
-            
+
             if (!DA.GetData(0, ref show)) return;
 
             if (show)
             {
+                _hasValue = false; // Reset value when map is opened
                 RhinoApp.InvokeOnUiThread((Action)ShowMapWindow);
             }
 
@@ -73,9 +75,10 @@ namespace MetaMap
             }
             else
             {
-                DA.SetData(0, null);
-                DA.SetData(1, null);
-                RhinoApp.WriteLine("OSM Picker: No value selected yet");
+                // Output NaN to signal "no value" instead of null (which triggers defaults downstream)
+                DA.SetData(0, double.NaN);
+                DA.SetData(1, double.NaN);
+                RhinoApp.WriteLine("OSM Picker: No value selected yet (sending NaN)");
             }
         }
 
@@ -86,8 +89,18 @@ namespace MetaMap
                 // Check if map window is already open
                 if (_currentForm != null && !_currentForm.IsDisposed)
                 {
-                    _currentForm.BringToFront();
-                    RhinoApp.WriteLine("Map window is already open - bringing to front");
+                    try
+                    {
+                        // Try to bring existing window to front and activate it
+                        _currentForm.BringToFront();
+                        _currentForm.Focus();
+                        // _currentForm.Topmost is already true
+                        RhinoApp.WriteLine("Map window is already open - bringing to front");
+                    }
+                    catch (Exception ex)
+                    {
+                        RhinoApp.WriteLine($"Error bringing map window to front: {ex.Message}");
+                    }
                     return;
                 }
 
@@ -95,12 +108,13 @@ namespace MetaMap
                 if (!PlatformUtils.IsWebViewSupported())
                 {
                     RhinoApp.WriteLine($"WebView not supported on {PlatformUtils.GetCurrentPlatform()}. Using fallback method.");
-                    PlatformUtils.ShowCoordinateInputDialog((lat, lng) => {
+                    PlatformUtils.ShowCoordinateInputDialog((lat, lng) =>
+                    {
                         _lat = lat;
                         _lng = lng;
                         _hasValue = true;
                         RhinoApp.WriteLine($"Manual input: lat={_lat}, lng={_lng}");
-                        
+
                         // Trigger Grasshopper recompute
                         var doc = OnPingDocument();
                         if (doc != null)
@@ -111,14 +125,26 @@ namespace MetaMap
                     return;
                 }
 
-            var html = @"
+                // Load resources safely
+                string cssContent = "";
+                string jsContent = "";
+                try
+                {
+                    cssContent = Resources.ResourceManager.GetString("leaflet_css");
+                    jsContent = Resources.ResourceManager.GetString("leaflet_js");
+                }
+                catch (Exception ex)
+                {
+                    RhinoApp.WriteLine($"Error loading resources: {ex.Message}");
+                }
+
+                var html = @"
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset='utf-8'/>
-<link rel='stylesheet' href='https://unpkg.com/leaflet/dist/leaflet.css'/>
-<script src='https://unpkg.com/leaflet/dist/leaflet.js'></script>
 <style>
+" + cssContent + @"
 html,body,#map{height:100%;margin:0;padding:0}
 #searchContainer {
   position: absolute;
@@ -172,9 +198,28 @@ html,body,#map{height:100%;margin:0;padding:0}
 #fetchButton:hover {
   background: #005a87;
 }
+#loadingOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: sans-serif;
+  font-size: 1.2em;
+  color: #333;
+}
 </style>
+<script>
+" + jsContent + @"
+</script>
 </head>
 <body>
+<div id='loadingOverlay'>Loading map...</div>
 <div id='map'></div>
 <div id='searchContainer'>
   <input type='text' id='searchInput' placeholder='Search for a location...' />
@@ -183,7 +228,19 @@ html,body,#map{height:100%;margin:0;padding:0}
 <button id='fetchButton'>Fetch Location</button>
 <script>
 var map=L.map('map', {zoomControl: false}).setView([33.749,-84.388],12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+console.time('mapLoad');
+var tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19});
+tileLayer.addTo(map);
+
+// Hide loading overlay when tiles start loading
+tileLayer.on('load', function() {
+  console.timeEnd('mapLoad');
+  document.getElementById('loadingOverlay').style.display = 'none';
+});
+// Also hide after a longer timeout just in case
+setTimeout(function() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+}, 10000);
 
 // Store current map center
 var currentCenter = map.getCenter();
@@ -209,12 +266,7 @@ function searchLocation(query) {
         // Center map on search result
         map.setView([lat, lon], 15);
         
-        // Add marker for search result
-        if (window.searchMarker) {
-          map.removeLayer(window.searchMarker);
-        }
-        window.searchMarker = L.marker([lat, lon]).addTo(map);
-        window.searchMarker.bindPopup('<b>' + result.display_name + '</b>').openPopup();
+        // NO MARKER ADDED HERE as requested
         
         console.log('Found location:', result.display_name, 'at', lat, lon);
       } else {
@@ -250,114 +302,164 @@ document.getElementById('fetchButton').addEventListener('click', function() {
 </body>
 </html>";
 
-            var form = new Form
-            {
-                Title = "MetaFETCH - Location Picker",
-                Size = new Eto.Drawing.Size(600, 400)
-            };
-            _currentForm = form; // Store reference to prevent multiple windows
+                var form = new Form
+                {
+                    Title = "MetaFETCH - Location Picker",
+                    Size = new Eto.Drawing.Size(600, 400),
+                    // ensure form appears in taskbar and can be activated
+                    Topmost = true, // Always on top as requested
+                    ShowInTaskbar = true,
+                    Owner = Rhino.UI.RhinoEtoApp.MainWindow // Set owner to Rhino window
+                };
+                _currentForm = form; // Store reference to prevent multiple windows
 
-            WebView web = null;
-            try
-            {
-                web = new WebView();
-                _currentWebView = web; // Store reference for fetch functionality
-                
-                // Load HTML with error handling
-                web.LoadHtml(html, new Uri("https://openstreetmap.org/"));
-                RhinoApp.WriteLine("WebView initialized successfully");
-            }
-            catch (Exception webEx)
-            {
-                RhinoApp.WriteLine($"WebView initialization failed: {webEx.Message}");
-                form.Close();
-                PlatformUtils.ShowCoordinateInputDialog((lat, lng) => {
-                    _lat = lat;
-                    _lng = lng;
-                    _hasValue = true;
-                    RhinoApp.WriteLine($"Manual input: lat={_lat}, lng={_lng}");
-                    
-                    // Trigger Grasshopper recompute
-                    var doc = OnPingDocument();
-                    if (doc != null)
-                    {
-                        doc.ScheduleSolution(1, d => ExpireSolution(false));
-                    }
-                });
-                return;
-            }
-            
-            // Use DocumentTitleChanged event as a more reliable callback mechanism
-            web.DocumentTitleChanged += (s, e) =>
-            {
+                WebView web = null;
+                EventHandler<Eto.Forms.WebViewTitleEventArgs> handler = null;
                 try
                 {
-                    var title = web.DocumentTitle;
-                    RhinoApp.WriteLine($"Document title changed: {title}");
-                    
-                    if (!string.IsNullOrEmpty(title) && title.StartsWith("callback://"))
+                    web = new WebView();
+                    _currentWebView = web; // Store reference for fetch functionality
+
+                    // Load HTML with error handling
+                    web.LoadHtml(html, new Uri("about:blank"));
+                    RhinoApp.WriteLine("WebView initialized successfully");
+                }
+                catch (Exception webEx)
+                {
+                    RhinoApp.WriteLine($"WebView initialization failed: {webEx.Message}");
+                    try { form.Close(); } catch { }
+                    PlatformUtils.ShowCoordinateInputDialog((lat, lng) =>
                     {
-                        var parts = title.Replace("callback://", "").Split(',');
-                        RhinoApp.WriteLine($"Parsing callback: {string.Join(", ", parts)}");
-                        
-                        if (parts.Length == 2 &&
-                            double.TryParse(parts[0], out double newLat) &&
-                            double.TryParse(parts[1], out double newLng))
+                        _lat = lat;
+                        _lng = lng;
+                        _hasValue = true;
+                        RhinoApp.WriteLine($"Manual input: lat={_lat}, lng={_lng}");
+
+                        // Trigger Grasshopper recompute
+                        var doc = OnPingDocument();
+                        if (doc != null)
                         {
-                            _lat = newLat;
-                            _lng = newLng;
-                            _hasValue = true;
+                            doc.ScheduleSolution(1, d => ExpireSolution(false));
+                        }
+                    });
+                    return;
+                }
 
-                            RhinoApp.WriteLine($"Successfully parsed coordinates: {_lat}, {_lng}");
+                // Use DocumentTitleChanged event as a more reliable callback mechanism
+                handler = (s, e) =>
+                {
+                    try
+                    {
+                        var title = web.DocumentTitle;
+                        RhinoApp.WriteLine($"Document title changed: {title}");
 
-                            // 🔁 trigger Grasshopper to recompute
-                            var doc = OnPingDocument();
-                            if (doc != null)
+                        if (!string.IsNullOrEmpty(title) && title.StartsWith("callback://"))
+                        {
+                            var parts = title.Replace("callback://", "").Split(',');
+                            RhinoApp.WriteLine($"Parsing callback: {string.Join(", ", parts)}");
+
+                            if (parts.Length == 2 &&
+                                double.TryParse(parts[0], out double newLat) &&
+                                double.TryParse(parts[1], out double newLng))
                             {
-                                // schedule recompute safely on GH main thread
-                                doc.ScheduleSolution(1, d => ExpireSolution(false));
+                                _lat = newLat;
+                                _lng = newLng;
+                                _hasValue = true;
+
+                                RhinoApp.WriteLine($"Successfully parsed coordinates: {_lat}, {_lng}");
+
+                                // 🔁 trigger Grasshopper to recompute
+                                var doc = OnPingDocument();
+                                if (doc != null)
+                                {
+                                    // schedule recompute safely on GH main thread
+                                    doc.ScheduleSolution(1, d => ExpireSolution(false));
+                                }
+                            }
+                            else
+                            {
+                                RhinoApp.WriteLine($"Failed to parse coordinates from: {title}");
                             }
                         }
-                        else
-                        {
-                            RhinoApp.WriteLine($"Failed to parse coordinates from: {title}");
-                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    RhinoApp.WriteLine($"Error in DocumentTitleChanged event: {ex.Message}");
-                }
-            };
+                    catch (Exception ex)
+                    {
+                        RhinoApp.WriteLine($"Error in DocumentTitleChanged event: {ex.Message}");
+                    }
+                };
 
-            form.Content = web;
-            
-            // Clean up references when form is closed
-            form.Closed += (s, e) =>
-            {
+                web.DocumentTitleChanged += handler;
+
+                form.Content = web;
+
+                // Clean up references when form is closed
+                form.Closed += (s, e) =>
+                {
+                    try
+                    {
+                        // Unsubscribe event handler to avoid duplicate handlers on re-open
+                        try
+                        {
+                            if (web != null && handler != null)
+                                web.DocumentTitleChanged -= handler;
+                        }
+                        catch (Exception ex) { RhinoApp.WriteLine($"Error unsubscribing handler: {ex.Message}"); }
+
+                        // Dispose webview to free native resources
+                        try
+                        {
+                            _currentWebView = null;
+                            web?.Dispose();
+                        }
+                        catch (Exception ex) { RhinoApp.WriteLine($"Error disposing WebView: {ex.Message}"); }
+
+                        // Ensure form reference cleared and disposed
+                        try
+                        {
+                            _currentForm = null;
+                            form?.Dispose();
+                        }
+                        catch (Exception ex) { RhinoApp.WriteLine($"Error disposing form: {ex.Message}"); }
+
+                        // Force a small GC to clean up native resources that can keep WebView alive
+                        try
+                        {
+                            GC.Collect();
+                            GC.WaitForPendingFinalizers();
+                        }
+                        catch { }
+
+                        RhinoApp.WriteLine("Map window closed and resources disposed");
+                    }
+                    catch (Exception ex)
+                    {
+                        RhinoApp.WriteLine($"Error during form cleanup: {ex.Message}");
+                    }
+                };
+
+                // Show and ensure activation
+                form.Show();
                 try
                 {
-                    _currentForm = null;
-                    _currentWebView = null;
-                    RhinoApp.WriteLine("Map window closed");
+                    form.Focus();
+                    form.BringToFront();
+                    // form.Topmost is already true
                 }
                 catch (Exception ex)
                 {
-                    RhinoApp.WriteLine($"Error during form cleanup: {ex.Message}");
+                    RhinoApp.WriteLine($"Error activating form: {ex.Message}");
                 }
-            };
-            
-            form.Show();
             }
             catch (Exception ex)
             {
                 RhinoApp.WriteLine($"Error creating map window: {ex.Message}");
-                PlatformUtils.ShowCoordinateInputDialog((lat, lng) => {
+                PlatformUtils.ShowCoordinateInputDialog((lat, lng) =>
+                {
                     _lat = lat;
                     _lng = lng;
                     _hasValue = true;
                     RhinoApp.WriteLine($"Manual input: lat={_lat}, lng={_lng}");
-                    
+
                     // Trigger Grasshopper recompute
                     var doc = OnPingDocument();
                     if (doc != null)
@@ -367,5 +469,5 @@ document.getElementById('fetchButton').addEventListener('click', function() {
                 });
             }
         }
-      }
     }
+}

@@ -7,21 +7,50 @@
         <Title>MetaMAP</Title>
         <Company>Ilker Karadag</Company>
         <Description>MetaMAP component for advanced mapping and analysis.</Description>
-        <PackageProjectUrl>https://eddy3d.com/</PackageProjectUrl>
+        <PackageProjectUrl>https://archidynamics.com/</PackageProjectUrl>
         <Keyword1>metamap</Keyword1>
         <Keyword2>mapping</Keyword2>
         <Keyword3>analysis</Keyword3>
         <NeutralLanguage>en-US</NeutralLanguage>
         <PackageIcon>Resources\metafoamlogo.png</PackageIcon>
-        <Version>0.0.20</Version>
-        <AssemblyVersion>0.0.20</AssemblyVersion>
-        <FileVersion>0.0.20</FileVersion>
+        <Version>0.0.29</Version>
+        <AssemblyVersion>0.0.29</AssemblyVersion>
+        <FileVersion>0.0.29</FileVersion>
         <LangVersion>12</LangVersion>
     </PropertyGroup>
+
+    <Target Name="WriteVersionToFile" BeforeTargets="BeforeBuild">
+        <WriteLinesToFile File="version.txt" Lines="$(Version)" Overwrite="true" />
+    </Target>
+
+    <Target Name="CopyVersionToOutput" AfterTargets="WriteVersionToFile">
+        <Copy SourceFiles="version.txt" DestinationFiles="$(TargetDir)version.txt" />
+    </Target>
 
     <Target Name="CopyAndRenameDll" AfterTargets="AfterBuild">
         <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFiles="$(TargetDir)$(TargetName).gha" />
     </Target>
+
+    <Target Name="DeleteOldZip" AfterTargets="CopyAndRenameDll">
+        <PropertyGroup>
+            <ZipPath>$(TargetDir)MetaMAP_Manual_New.zip</ZipPath>
+        </PropertyGroup>
+        <Delete Files="$(ZipPath)" Condition="Exists('$(ZipPath)')" />
+    </Target>
+
+    <Target Name="ZipDistribution" AfterTargets="DeleteOldZip" DependsOnTargets="CopyVersionToOutput">
+        <PropertyGroup>
+            <ZipPath>$(TargetDir)MetaMAP_Manual_New.zip</ZipPath>
+        </PropertyGroup>
+        <Exec Command="powershell -Command &quot;Compress-Archive -Path '$(TargetDir)$(TargetName).gha', '$(TargetDir)$(TargetName).deps.json', '$(TargetDir)version.txt', '$(TargetDir)Templates' -DestinationPath '$(ZipPath)' -Force&quot;" />
+    </Target>
+
+    <ItemGroup>
+        <None Include="Templates\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>Templates\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </None>
+    </ItemGroup>
 
     <PropertyGroup>
         <NoWarn>$(NoWarn);CA1416</NoWarn>
@@ -30,7 +59,6 @@
 
     <PropertyGroup>
         <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-        <Version>0.0.20</Version>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -40,11 +68,9 @@
 
     <ItemGroup>
         <PackageReference Include="Grasshopper" Version="8.21.25188.17001" IncludeAssets="compile;build" />
-        <PackageReference Include="System.Drawing.Common" Version="9.0.7" />
-        <PackageReference Include="System.Resources.Extensions" Version="9.0.7" />
+        <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+        <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-        <PackageReference Include="System.Net.Http" Version="4.3.4" />
-        <PackageReference Include="MIConvexHull" Version="1.0.20" />
         <PackageReference Include="Eto.Forms" Version="2.7.4" />
         <PackageReference Include="Eto.Platform.Windows" Version="2.7.4" />
     </ItemGroup>
