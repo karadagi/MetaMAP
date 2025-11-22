@@ -29,12 +29,44 @@ jobs:
       
     - name: Get version from csproj
       id: get_version
+name: Build and Release MetaMAP
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Get version from csproj
+      id: get_version
       run: |
         [xml]$csproj = Get-Content "MetaMAP.csproj"
         $version = $csproj.Project.PropertyGroup.Version | Select-Object -First 1
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
         echo "TAG=v$version" >> $env:GITHUB_OUTPUT
       shell: pwsh
+    ${{ secrets.GITHUB_TOKEN }}
       
     - name: Check if release exists
       id: check_release
