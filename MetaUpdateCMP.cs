@@ -75,12 +75,43 @@ namespace MetaMap
                 _statusMessage = "Starting update...";
                 
                 // Run update asynchronously to avoid freezing UI
-                string updateUrl = "http://archidynamics.com/MetaMAP_Manual_New.zip";
-                Task.Run(() => PerformUpdate(updateUrl));
+                Task.Run(() => PerformUpdate());
             }
 
             DA.SetData(0, _statusMessage);
             DA.SetData(1, GetCurrentVersion());
+        }
+
+        private async Task<string> GetLatestReleaseUrl()
+        {
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add("User-Agent", "MetaMAP-Updater");
+                    
+                    // GitHub API to get latest release
+                    string apiUrl = "https://api.github.com/repos/YOUR_USERNAME/MetaMAP/releases/latest";
+                    var response = await client.GetStringAsync(apiUrl);
+                    
+                    // Parse JSON to get download URL
+                    dynamic release = Newtonsoft.Json.JsonConvert.DeserializeObject(response);
+                    foreach (var asset in release.assets)
+                    {
+                        if (asset.name.ToString() == "MetaMAP_Manual_New.zip")
+                        {
+                            return asset.browser_download_url.ToString();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback to direct URL if GitHub API fails
+                return "http://archidynamics.com/MetaMAP_Manual_New.zip";
+            }
+            
+            return "http://archidynamics.com/MetaMAP_Manual_New.zip";
         }
 
         private string GetCurrentVersion()
@@ -104,10 +135,16 @@ namespace MetaMap
             return Assembly.GetExecutingAssembly().GetName().Version.ToString();
         }
 
-        private async Task PerformUpdate(string url)
+        private async Task PerformUpdate()
         {
             try
             {
+                _statusMessage = "Fetching latest release...";
+                UpdateStatus();
+
+                // Get the latest release URL from GitHub
+                string url = await GetLatestReleaseUrl();
+
                 _statusMessage = "Downloading update...";
                 UpdateStatus();
 
