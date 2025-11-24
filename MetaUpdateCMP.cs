@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Linq;
 using MetaMAP.Properties;
 
 namespace MetaMap
@@ -145,7 +146,9 @@ namespace MetaMap
 
                 using (var archive = ZipFile.OpenRead(tempFile))
                 {
-                    var versionEntry = archive.GetEntry("version.txt");
+                    // Find version.txt anywhere in the archive
+                    var versionEntry = archive.Entries.FirstOrDefault(e => e.Name.Equals("version.txt", StringComparison.OrdinalIgnoreCase));
+                    
                     if (versionEntry != null)
                     {
                         using (var reader = new StreamReader(versionEntry.Open()))
@@ -176,12 +179,46 @@ namespace MetaMap
                 // Extract and replace
                 using (var archive = ZipFile.OpenRead(tempFile))
                 {
+                    // Detect root folder
+                    string rootFolder = "";
+                    var firstEntry = archive.Entries.FirstOrDefault(e => !string.IsNullOrEmpty(e.FullName));
+                    if (firstEntry != null)
+                    {
+                        // Get the first segment of the path
+                        string potentialRoot = firstEntry.FullName.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                        
+                        if (!string.IsNullOrEmpty(potentialRoot) && 
+                            archive.Entries.All(e => string.IsNullOrEmpty(e.FullName) || 
+                                                   e.FullName.Replace('\\', '/').StartsWith(potentialRoot + "/") || 
+                                                   e.FullName.Equals(potentialRoot) ||
+                                                   e.FullName.Equals(potentialRoot + "/") ||
+                                                   e.FullName.Equals(potentialRoot + "\\")))
+                        {
+                            rootFolder = potentialRoot;
+                        }
+                    }
+
                     foreach (var entry in archive.Entries)
                     {
                         // Skip directories
                         if (string.IsNullOrEmpty(entry.Name)) continue;
 
-                        string destPath = Path.Combine(installDir, entry.FullName);
+                        string entryPath = entry.FullName;
+
+                        // Strip root folder if present
+                        if (!string.IsNullOrEmpty(rootFolder))
+                        {
+                            string normalizedPath = entryPath.Replace('\\', '/');
+                            if (normalizedPath.StartsWith(rootFolder + "/"))
+                            {
+                                entryPath = entryPath.Substring(rootFolder.Length + 1);
+                            }
+                        }
+                        
+                        // Skip if path became empty (shouldn't happen for files)
+                        if (string.IsNullOrEmpty(entryPath)) continue;
+
+                        string destPath = Path.Combine(installDir, entryPath);
                         string destDir = Path.GetDirectoryName(destPath);
 
                         if (!Directory.Exists(destDir))

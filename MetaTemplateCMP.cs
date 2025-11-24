@@ -20,7 +20,7 @@ namespace MetaMap
 
         public MetaTemplateCMP()
           : base("MetaTEMPLATE", "MetaTEMPLATE",
-              "Load MetaMAP template files from Templates folder",
+              "MetaMAP template files for quick starting",
               "MetaMAP", "Templates")
         {
         }
