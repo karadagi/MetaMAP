@@ -179,46 +179,23 @@ namespace MetaMap
                 // Extract and replace
                 using (var archive = ZipFile.OpenRead(tempFile))
                 {
-                    // Detect root folder
-                    string rootFolder = "";
-                    var firstEntry = archive.Entries.FirstOrDefault(e => !string.IsNullOrEmpty(e.FullName));
-                    if (firstEntry != null)
-                    {
-                        // Get the first segment of the path
-                        string potentialRoot = firstEntry.FullName.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-                        
-                        if (!string.IsNullOrEmpty(potentialRoot) && 
-                            archive.Entries.All(e => string.IsNullOrEmpty(e.FullName) || 
-                                                   e.FullName.Replace('\\', '/').StartsWith(potentialRoot + "/") || 
-                                                   e.FullName.Equals(potentialRoot) ||
-                                                   e.FullName.Equals(potentialRoot + "/") ||
-                                                   e.FullName.Equals(potentialRoot + "\\")))
-                        {
-                            rootFolder = potentialRoot;
-                        }
-                    }
-
                     foreach (var entry in archive.Entries)
                     {
                         // Skip directories
                         if (string.IsNullOrEmpty(entry.Name)) continue;
 
-                        string entryPath = entry.FullName;
+                        string destFileName = entry.Name;
+                        string targetSubDir = "";
 
-                        // Strip root folder if present
-                        if (!string.IsNullOrEmpty(rootFolder))
+                        // Check if it belongs to Templates
+                        // We look for "Templates" in the path segments
+                        var parts = entry.FullName.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Any(p => p.Equals("Templates", StringComparison.OrdinalIgnoreCase)))
                         {
-                            string normalizedPath = entryPath.Replace('\\', '/');
-                            if (normalizedPath.StartsWith(rootFolder + "/"))
-                            {
-                                entryPath = entryPath.Substring(rootFolder.Length + 1);
-                            }
+                            targetSubDir = "Templates";
                         }
-                        
-                        // Skip if path became empty (shouldn't happen for files)
-                        if (string.IsNullOrEmpty(entryPath)) continue;
 
-                        string destPath = Path.Combine(installDir, entryPath);
+                        string destPath = Path.Combine(installDir, targetSubDir, destFileName);
                         string destDir = Path.GetDirectoryName(destPath);
 
                         if (!Directory.Exists(destDir))
@@ -237,14 +214,26 @@ namespace MetaMap
                             }
                             catch (Exception ex)
                             {
-                                // If we can't move it, we might fail to extract
                                 _statusMessage = $"Error renaming {entry.Name}: {ex.Message}";
-                                // Don't return here, try to continue or let the extract fail
                             }
                         }
 
                         // Extract new file
                         entry.ExtractToFile(destPath, true);
+                    }
+                }
+
+                // Cleanup accidental subdirectory if it exists
+                string accidentalDir = Path.Combine(installDir, "MetaMAP_Manual_New");
+                if (Directory.Exists(accidentalDir))
+                {
+                    try
+                    {
+                        Directory.Delete(accidentalDir, true);
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors
                     }
                 }
 
