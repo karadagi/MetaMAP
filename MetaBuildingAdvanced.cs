@@ -1,4 +1,5 @@
 using Grasshopper.Kernel;
+using Grasshopper.Kernel.Types;
 using MetaMAP.Properties;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -48,7 +49,7 @@ namespace MetaMap
             pManager.AddNumberParameter("Longitude", "Lon", "Longitude of the center point", GH_ParamAccess.item);
             pManager.AddNumberParameter("Radius", "R", "Radius in meters (default: 500)", GH_ParamAccess.item, 500);
             pManager.AddBooleanParameter("Run", "Run", "Set to True to run the download", GH_ParamAccess.item, false);
-            pManager.AddMeshParameter("Terrain Mesh", "TM", "Optional terrain mesh to align buildings with terrain elevation", GH_ParamAccess.item);
+            pManager.AddGeometryParameter("Terrain", "T", "Optional terrain mesh or brep to align buildings with terrain elevation", GH_ParamAccess.item);
             pManager[4].Optional = true;
         }
 
@@ -64,13 +65,13 @@ namespace MetaMap
             double lon = 0;
             double radius = 500;
             bool run = false;
-            Mesh terrainMesh = null;
+            IGH_GeometricGoo terrainGoo = null;
 
             if (!DA.GetData(0, ref lat)) return;
             if (!DA.GetData(1, ref lon)) return;
             DA.GetData(2, ref radius);
             DA.GetData(3, ref run);
-            DA.GetData(4, ref terrainMesh);
+            DA.GetData(4, ref terrainGoo);
 
             // Check for NaN (signal from MetaFetch that no value is selected)
             if (double.IsNaN(lat) || double.IsNaN(lon))
@@ -88,12 +89,24 @@ namespace MetaMap
 
             _debugMessages.Clear();
             Log($"Processing request for Lat: {lat}, Lon: {lon}, Radius: {radius}m");
-            if (terrainMesh != null)
-                Log($"Using terrain mesh with {terrainMesh.Vertices.Count} vertices.");
+
+            GeometryBase terrainGeo = null;
+            if (terrainGoo != null)
+            {
+                if (terrainGoo is GH_Mesh ghMesh)
+                    terrainGeo = ghMesh.Value;
+                else if (terrainGoo is GH_Brep ghBrep)
+                    terrainGeo = ghBrep.Value;
+                else if (terrainGoo is GH_Surface ghSurf)
+                    terrainGeo = ghSurf.Value;
+                
+                if (terrainGeo != null)
+                    Log($"Using terrain geometry: {terrainGeo.ObjectType}");
+            }
 
             try
             {
-                var buildings = ProcessBuildings(lat, lon, radius, terrainMesh);
+                var buildings = ProcessBuildings(lat, lon, radius, terrainGeo);
                 DA.SetDataList(0, buildings);
                 DA.SetData(1, string.Join("\n", _debugMessages));
             }
@@ -111,7 +124,7 @@ namespace MetaMap
             _debugMessages.Add($"[{timestamp}] {msg}");
         }
 
-        private List<Brep> ProcessBuildings(double lat, double lon, double radius, Mesh terrainMesh)
+        private List<Brep> ProcessBuildings(double lat, double lon, double radius, GeometryBase terrainGeo)
         {
             var buildings = new List<Brep>();
 
@@ -209,7 +222,7 @@ namespace MetaMap
                 var geom = feature["geometry"] as JObject;
                 double height = props?["height"]?.Value<double>() ?? 3.0;
 
-                var newBreps = CreateBuildingBrep(geom, height, lon, lat, terrainMesh);
+                var newBreps = CreateBuildingBrep(geom, height, lon, lat, terrainGeo);
                 buildings.AddRange(newBreps);
             }
 
@@ -264,7 +277,7 @@ namespace MetaMap
             return null;
         }
 
-        private List<Brep> CreateBuildingBrep(JObject geometry, double height, double centerLon, double centerLat, Mesh terrainMesh)
+        private List<Brep> CreateBuildingBrep(JObject geometry, double height, double centerLon, double centerLat, GeometryBase terrainGeo)
         {
             var breps = new List<Brep>();
             if (geometry == null) return breps;
@@ -313,7 +326,7 @@ namespace MetaMap
 
                     // Calculate average terrain elevation
                     double averageZ = 0;
-                    if (terrainMesh != null && terrainMesh.IsValid)
+                    if (terrainGeo != null)
                     {
                         var points = new List<Point3d>();
                         if (exteriorCurve is PolylineCurve pc)
@@ -325,8 +338,18 @@ namespace MetaMap
                         var elevations = new List<double>();
                         foreach (var pt in points)
                         {
-                            var closestPt = terrainMesh.ClosestPoint(pt);
-                            elevations.Add(closestPt.Z);
+                            double z = 0;
+                            if (terrainGeo is Mesh mesh && mesh.IsValid)
+                            {
+                                var closestPt = mesh.ClosestPoint(pt);
+                                z = closestPt.Z;
+                            }
+                            else if (terrainGeo is Brep brep && brep.IsValid)
+                            {
+                                brep.ClosestPoint(pt, out Point3d closestPt, out _, out _, out _, 0, out _);
+                                z = closestPt.Z;
+                            }
+                            elevations.Add(z);
                         }
 
                         if (elevations.Count > 0)
