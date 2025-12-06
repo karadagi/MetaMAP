@@ -48,6 +48,8 @@ namespace MetaMap
             pManager.AddNumberParameter("Longitude", "Lon", "Longitude of the center point", GH_ParamAccess.item);
             pManager.AddNumberParameter("Radius", "R", "Radius in meters (default: 500)", GH_ParamAccess.item, 500);
             pManager.AddBooleanParameter("Run", "Run", "Set to True to run the download", GH_ParamAccess.item, false);
+            pManager.AddMeshParameter("Terrain Mesh", "TM", "Optional terrain mesh to align buildings with terrain elevation", GH_ParamAccess.item);
+            pManager[4].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -62,11 +64,13 @@ namespace MetaMap
             double lon = 0;
             double radius = 500;
             bool run = false;
+            Mesh terrainMesh = null;
 
             if (!DA.GetData(0, ref lat)) return;
             if (!DA.GetData(1, ref lon)) return;
             DA.GetData(2, ref radius);
             DA.GetData(3, ref run);
+            DA.GetData(4, ref terrainMesh);
 
             if (!run)
             {
@@ -76,10 +80,12 @@ namespace MetaMap
 
             _debugMessages.Clear();
             Log($"Processing request for Lat: {lat}, Lon: {lon}, Radius: {radius}m");
+            if (terrainMesh != null)
+                Log($"Using terrain mesh with {terrainMesh.Vertices.Count} vertices.");
 
             try
             {
-                var buildings = ProcessBuildings(lat, lon, radius);
+                var buildings = ProcessBuildings(lat, lon, radius, terrainMesh);
                 DA.SetDataList(0, buildings);
                 DA.SetData(1, string.Join("\n", _debugMessages));
             }
@@ -97,7 +103,7 @@ namespace MetaMap
             _debugMessages.Add($"[{timestamp}] {msg}");
         }
 
-        private List<Brep> ProcessBuildings(double lat, double lon, double radius)
+        private List<Brep> ProcessBuildings(double lat, double lon, double radius, Mesh terrainMesh)
         {
             var buildings = new List<Brep>();
 
@@ -105,11 +111,11 @@ namespace MetaMap
             Log($"Calculated Full BBox: {fullBboxStr}");
 
             // Parse bbox
-            var parts = fullBboxStr.Split(',').Select(double.Parse).ToArray();
-            double minLon = parts[0];
-            double minLat = parts[1];
-            double maxLon = parts[2];
-            double maxLat = parts[3];
+            var partsStr = fullBboxStr.Split(',');
+            double minLon = double.Parse(partsStr[0]);
+            double minLat = double.Parse(partsStr[1]);
+            double maxLon = double.Parse(partsStr[2]);
+            double maxLat = double.Parse(partsStr[3]);
 
             // Adaptive tiling
             int steps = 1;
@@ -195,7 +201,7 @@ namespace MetaMap
                 var geom = feature["geometry"] as JObject;
                 double height = props?["height"]?.Value<double>() ?? 3.0;
 
-                var newBreps = CreateBuildingBrep(geom, height, lon, lat);
+                var newBreps = CreateBuildingBrep(geom, height, lon, lat, terrainMesh);
                 buildings.AddRange(newBreps);
             }
 
@@ -250,7 +256,7 @@ namespace MetaMap
             return null;
         }
 
-        private List<Brep> CreateBuildingBrep(JObject geometry, double height, double centerLon, double centerLat)
+        private List<Brep> CreateBuildingBrep(JObject geometry, double height, double centerLon, double centerLat, Mesh terrainMesh)
         {
             var breps = new List<Brep>();
             if (geometry == null) return breps;
@@ -297,12 +303,44 @@ namespace MetaMap
                     var curves = new List<Curve> { exteriorCurve };
                     curves.AddRange(interiorCurves);
 
+                    // Calculate average terrain elevation
+                    double averageZ = 0;
+                    if (terrainMesh != null && terrainMesh.IsValid)
+                    {
+                        var points = new List<Point3d>();
+                        if (exteriorCurve is PolylineCurve pc)
+                        {
+                            for (int i = 0; i < pc.PointCount; i++)
+                                points.Add(pc.Point(i));
+                        }
+
+                        var elevations = new List<double>();
+                        foreach (var pt in points)
+                        {
+                            var closestPt = terrainMesh.ClosestPoint(pt);
+                            elevations.Add(closestPt.Z);
+                        }
+
+                        if (elevations.Count > 0)
+                            averageZ = elevations.Average();
+                    }
+
+                    // Move curves to average Z
+                    if (Math.Abs(averageZ) > 0.001)
+                    {
+                        var transform = Transform.Translation(0, 0, averageZ);
+                        foreach (var c in curves)
+                        {
+                            c.Transform(transform);
+                        }
+                    }
+
                     var planarBreps = Brep.CreatePlanarBreps(curves, 1e-3);
 
                     if (planarBreps != null && planarBreps.Length > 0)
                     {
                         var baseSrf = planarBreps[0];
-                        var pathCurve = new LineCurve(new Point3d(0, 0, 0), new Point3d(0, 0, height));
+                        var pathCurve = new LineCurve(new Point3d(0, 0, averageZ), new Point3d(0, 0, averageZ + height));
                         var extrudedBrep = baseSrf.Faces[0].CreateExtrusion(pathCurve, true);
 
                         if (extrudedBrep != null)
