@@ -1,4 +1,5 @@
 using Grasshopper.Kernel;
+using Grasshopper.Kernel.Types;
 using MetaMAP.Properties;
 using Newtonsoft.Json;
 using Rhino.Geometry;
@@ -65,7 +66,7 @@ public class MetaBuildingCMP : GH_Component
         pManager.AddNumberParameter("Latitude", "Lat", "Latitude for OpenStreetMap query. Default: 33.775678 (Atlanta, GA)", GH_ParamAccess.item);
         pManager.AddNumberParameter("Longitude", "Lon", "Longitude for OpenStreetMap query. Default: -84.395133 (Atlanta, GA)", GH_ParamAccess.item);
         pManager.AddNumberParameter("Radius", "R", "Search radius in meters for building extraction. Default: 200m", GH_ParamAccess.item);
-        pManager.AddMeshParameter("Terrain Mesh", "TM", "Optional terrain mesh to align buildings with terrain elevation", GH_ParamAccess.item);
+        pManager.AddGenericParameter("Terrain", "T", "Optional terrain (Mesh or Brep) to align buildings with terrain elevation", GH_ParamAccess.item);
 
         pManager[0].Optional = true;
         pManager[1].Optional = true;
@@ -91,6 +92,7 @@ public class MetaBuildingCMP : GH_Component
     {
         // Default values
         double radius = 200.0; // Default 100 meters
+        object terrainInput = null;
         Mesh terrainMesh = null;
 
         // Get input values (with defaults if not provided)
@@ -99,7 +101,50 @@ public class MetaBuildingCMP : GH_Component
         DA.GetData(0, ref lat);
         DA.GetData(1, ref lon);
         DA.GetData(2, ref radius);
-        DA.GetData(3, ref terrainMesh);
+        DA.GetData(3, ref terrainInput);
+
+        // Process terrain input
+        if (terrainInput != null)
+        {
+            if (terrainInput is GH_Mesh ghMesh)
+            {
+                terrainMesh = ghMesh.Value;
+            }
+            else if (terrainInput is Mesh mesh)
+            {
+                terrainMesh = mesh;
+            }
+            else if (terrainInput is GH_Brep ghBrep)
+            {
+                // Convert Brep to Mesh for performance
+                var brep = ghBrep.Value;
+                if (brep != null)
+                {
+                    var meshes = Mesh.CreateFromBrep(brep, MeshingParameters.FastRenderMesh);
+                    if (meshes != null && meshes.Length > 0)
+                    {
+                        terrainMesh = new Mesh();
+                        foreach (var m in meshes)
+                        {
+                            terrainMesh.Append(m);
+                        }
+                    }
+                }
+            }
+            else if (terrainInput is Brep brep)
+            {
+                // Convert Brep to Mesh for performance
+                var meshes = Mesh.CreateFromBrep(brep, MeshingParameters.FastRenderMesh);
+                if (meshes != null && meshes.Length > 0)
+                {
+                    terrainMesh = new Mesh();
+                    foreach (var m in meshes)
+                    {
+                        terrainMesh.Append(m);
+                    }
+                }
+            }
+        }
 
         // Check for NaN (signal from MetaFetch that no value is selected)
         if (double.IsNaN(lat) || double.IsNaN(lon))
@@ -136,7 +181,7 @@ public class MetaBuildingCMP : GH_Component
             // Fetch data from OpenStreetMap with timeout
             var osmData = FetchOSMDataSync(overpassQuery);
 
-            string terrainStatus = terrainMesh != null ? $"Terrain mesh: {terrainMesh.Vertices.Count} vertices" : "No terrain mesh provided";
+            string terrainStatus = terrainMesh != null ? $"Terrain: {terrainMesh.Vertices.Count} vertices" : "No terrain provided";
             DA.SetData(2, $"Processing building geometry... Raw data length: {osmData?.Length ?? 0} characters. {terrainStatus}");
 
             // Parse and convert to Rhino geometry

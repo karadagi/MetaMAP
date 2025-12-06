@@ -78,7 +78,7 @@ public class MetaTerrainCMP : GH_Component
     /// </summary>
     protected override void RegisterOutputParams(GH_OutputParamManager pManager)
     {
-        pManager.AddMeshParameter("Terrain Mesh", "TM", "Generated terrain mesh with elevation data", GH_ParamAccess.item);
+        pManager.AddBrepParameter("Terrain Brep", "TB", "Generated terrain brep with elevation data", GH_ParamAccess.item);
         pManager.AddPointParameter("Elevation Points", "EP", "Grid points with elevation data", GH_ParamAccess.list);
         pManager.AddNumberParameter("Elevation Values", "EV", "Elevation values in meters", GH_ParamAccess.list);
         pManager.AddTextParameter("Status", "S", "Processing status and information", GH_ParamAccess.item);
@@ -166,7 +166,14 @@ public class MetaTerrainCMP : GH_Component
             var elevationPoints = elevationData.Select(ed => ed.Point).ToList();
             var elevationValues = elevationData.Select(ed => ed.Elevation).ToList();
 
-            DA.SetData(0, terrainMesh);
+            // Convert mesh to brep
+            Brep terrainBrep = null;
+            if (terrainMesh != null)
+            {
+                terrainBrep = Brep.CreateFromMesh(terrainMesh, true);
+            }
+
+            DA.SetData(0, terrainBrep);
             DA.SetDataList(1, showPoints ? elevationPoints : null);
             DA.SetDataList(2, showPoints ? elevationValues : null);
             DA.SetData(3, $"Successfully processed terrain data. Location: {lat:F6}, {lon:F6}, Radius: {radius}m, Grid: {gridResolution}x{gridResolution}. Points: {(showPoints ? "Visible" : "Hidden")}. {_lastDebugInfo}");
