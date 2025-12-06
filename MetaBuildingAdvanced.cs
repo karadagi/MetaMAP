@@ -72,6 +72,14 @@ namespace MetaMap
             DA.GetData(3, ref run);
             DA.GetData(4, ref terrainMesh);
 
+            // Check for NaN (signal from MetaFetch that no value is selected)
+            if (double.IsNaN(lat) || double.IsNaN(lon))
+            {
+                DA.SetDataList(0, new List<Brep>());
+                DA.SetData(1, "Waiting for valid coordinates...");
+                return;
+            }
+
             if (!run)
             {
                 DA.SetData(1, "Run is set to False. Waiting...");
