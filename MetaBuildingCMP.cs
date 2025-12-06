@@ -497,7 +497,7 @@ out geom;";
                 return null;
 
             // Create a planar brep from the curve at the terrain level
-            var breps = Brep.CreatePlanarBreps(curve);
+            var breps = Brep.CreatePlanarBreps(curve, 1e-3);
             if (breps == null || breps.Length == 0)
                 return null;
 

@@ -73,6 +73,16 @@ namespace MetaMAP.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
+        internal static byte[] MetaBuildingAdvanced {
+            get {
+                object obj = ResourceManager.GetObject("MetaBuildingAdvanced", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
         internal static byte[] MetaMAP_fetch {
             get {
                 object obj = ResourceManager.GetObject("MetaMAP_fetch", resourceCulture);
