@@ -21,7 +21,7 @@ namespace MetaMap
         public MetaBuildingAdvanced()
             : base("MetaBuildingAdvanced", "MetaBuildingAdv",
                 "Advanced MetaBuilding component using WFS and tiling for large areas",
-                "MetaMAP", "MetaMAP")
+                "MetaMAP", "Building")
         {
         }
 

@@ -25,7 +25,7 @@ public class MetaTerrainCMP : GH_Component
     public MetaTerrainCMP()
         : base("MetaTERRAIN", "MetaTERRAIN",
             $"Read terrain elevation data from OpenElevation. {Environment.NewLine}Use 'Show Points' to control visibility of elevation points.",
-            "MetaMAP", "MetaMAP")
+            "MetaMAP", "Terrain")
     {
     }
 

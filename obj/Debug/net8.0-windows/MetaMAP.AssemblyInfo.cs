@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("MetaMAP component for advanced mapping and analysis.")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.0.48")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.0.48+cbf001a8bdc1b74b86cf083488ff3d4c0b195830")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.0.48+b7d1a1728f2f1e13e3cae06193da1a83062fcd64")]
 [assembly: System.Reflection.AssemblyProductAttribute("MetaMAP")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MetaMAP")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.0.48")]

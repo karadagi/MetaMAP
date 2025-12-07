@@ -26,7 +26,7 @@ public class MetaBuildingCMP : GH_Component
     public MetaBuildingCMP()
         : base("MetaBuilding", "MetaBuilding",
             $"MetaBuilding component for advanced building extraction from OpenStreetMap",
-            "MetaMAP", "MetaMAP")
+            "MetaMAP", "Building")
     {
     }
 

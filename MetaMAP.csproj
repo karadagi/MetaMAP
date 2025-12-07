@@ -12,7 +12,7 @@
         <Keyword2>mapping</Keyword2>
         <Keyword3>analysis</Keyword3>
         <NeutralLanguage>en-US</NeutralLanguage>
-        <PackageIcon>Resources\metafoamlogo.png</PackageIcon>
+        <PackageIcon>Resources\MetaBuilding.png</PackageIcon>
         <Version>0.0.48</Version>
         <AssemblyVersion>0.0.48</AssemblyVersion>
         <FileVersion>0.0.48</FileVersion>

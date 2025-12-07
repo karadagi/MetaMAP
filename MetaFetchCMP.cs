@@ -21,7 +21,7 @@ namespace MetaMap
         private Form _currentForm;
 
         public MetaFetchCMP()
-          : base("MetaFETCH", "MetaFETCH", $"Interactive location picker for fetching coordinates. {Environment.NewLine} Use the 'Fetch Location' button to get coordinates.", "MetaMAP", "MetaMAP")
+          : base("MetaFETCH", "MetaFETCH", $"Interactive location picker for fetching coordinates. {Environment.NewLine} Use the 'Fetch Location' button to get coordinates.", "MetaMAP", "Fetch")
         { }
 
         public override Guid ComponentGuid => new Guid("7ECA432E-26BB-4E97-8A5D-A1C98D319888");

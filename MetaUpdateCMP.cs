@@ -20,7 +20,7 @@ namespace MetaMap
         public MetaUpdateCMP()
           : base("MetaUPDATE", "MetaUPDATE",
               "Update MetaMAP to the latest version from a URL",
-              "MetaMAP", "MetaMAP")
+              "MetaMAP", "Templates")
         {
         }
 
