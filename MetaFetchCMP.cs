@@ -46,7 +46,7 @@ namespace MetaMap
         }
         protected override void RegisterInputParams(GH_InputParamManager p)
         {
-            p.AddBooleanParameter("Show Map", "S", "Opens the map window", GH_ParamAccess.item, false);
+// No input parameters needed
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager p)
@@ -57,15 +57,8 @@ namespace MetaMap
 
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            bool show = false;
-
-            if (!DA.GetData(0, ref show)) return;
-
-            if (show)
-            {
-                _hasValue = false; // Reset value when map is opened
-                RhinoApp.InvokeOnUiThread((Action)ShowMapWindow);
-            }
+            // Automatically open map window when component runs
+            RhinoApp.InvokeOnUiThread((Action)ShowMapWindow);
 
             if (_hasValue)
             {
