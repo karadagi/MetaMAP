@@ -13,9 +13,9 @@
         <Keyword3>analysis</Keyword3>
         <NeutralLanguage>en-US</NeutralLanguage>
         <PackageIcon>Resources\metafoamlogo.png</PackageIcon>
-        <Version>0.0.47</Version>
-        <AssemblyVersion>0.0.47</AssemblyVersion>
-        <FileVersion>0.0.47</FileVersion>
+        <Version>0.0.48</Version>
+        <AssemblyVersion>0.0.48</AssemblyVersion>
+        <FileVersion>0.0.48</FileVersion>
         <LangVersion>12</LangVersion>
     </PropertyGroup>
 

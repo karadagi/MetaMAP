@@ -48,9 +48,8 @@ namespace MetaMap
             pManager.AddNumberParameter("Latitude", "Lat", "Latitude of the center point", GH_ParamAccess.item);
             pManager.AddNumberParameter("Longitude", "Lon", "Longitude of the center point", GH_ParamAccess.item);
             pManager.AddNumberParameter("Radius", "R", "Radius in meters (default: 500)", GH_ParamAccess.item, 500);
-            pManager.AddBooleanParameter("Run", "Run", "Set to True to run the download", GH_ParamAccess.item, false);
             pManager.AddGeometryParameter("Terrain", "T", "Optional terrain mesh or brep to align buildings with terrain elevation", GH_ParamAccess.item);
-            pManager[4].Optional = true;
+            pManager[3].Optional = true;
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -64,26 +63,18 @@ namespace MetaMap
             double lat = 0;
             double lon = 0;
             double radius = 500;
-            bool run = false;
             IGH_GeometricGoo terrainGoo = null;
 
             if (!DA.GetData(0, ref lat)) return;
             if (!DA.GetData(1, ref lon)) return;
             DA.GetData(2, ref radius);
-            DA.GetData(3, ref run);
-            DA.GetData(4, ref terrainGoo);
+            DA.GetData(3, ref terrainGoo);
 
             // Check for NaN (signal from MetaFetch that no value is selected)
             if (double.IsNaN(lat) || double.IsNaN(lon))
             {
                 DA.SetDataList(0, new List<Brep>());
                 DA.SetData(1, "Waiting for valid coordinates...");
-                return;
-            }
-
-            if (!run)
-            {
-                DA.SetData(1, "Run is set to False. Waiting...");
                 return;
             }
 
