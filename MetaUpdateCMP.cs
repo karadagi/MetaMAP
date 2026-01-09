@@ -156,10 +156,22 @@ namespace MetaMap
                             remoteVersion = reader.ReadToEnd().Trim();
                         }
 
-                        string localVersion = GetCurrentVersion();
-                        if (string.Equals(remoteVersion, localVersion, StringComparison.OrdinalIgnoreCase))
+                        string localVersionStr = GetCurrentVersion();
+                        
+                        if (Version.TryParse(remoteVersion, out Version rVer) && Version.TryParse(localVersionStr, out Version lVer))
                         {
-                            isNewVersion = false;
+                            if (rVer <= lVer)
+                            {
+                                isNewVersion = false;
+                            }
+                        }
+                        else
+                        {
+                            // Fallback to string equality if parsing fails
+                            if (string.Equals(remoteVersion, localVersionStr, StringComparison.OrdinalIgnoreCase))
+                            {
+                                isNewVersion = false;
+                            }
                         }
                     }
                 }
