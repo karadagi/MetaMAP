@@ -533,39 +533,33 @@ out geom;";
 
         try
         {
-            // Create a mesh from the elevation points using Delaunay triangulation
-            var points = elevationData.Select(ed => ed.Point).ToArray();
-
-            // Use Rhino's mesh creation from points
-            var mesh = new Mesh();
-
-            // Add vertices
-            foreach (var point in points)
+            // Convert points to Rhino points (Z is already set)
+            var points = elevationData.Select(ed => ed.Point).ToList();
+            
+            // Convert to Grasshopper Node2List for Delaunay
+            var nodes = new Grasshopper.Kernel.Geometry.Node2List();
+            for (int i = 0; i < points.Count; i++)
             {
-                mesh.Vertices.Add(point);
+                var pt = points[i];
+                nodes.Append(new Grasshopper.Kernel.Geometry.Node2(pt.X, pt.Y));
             }
 
-            // Create faces using simple grid triangulation
-            int gridSize = (int)Math.Sqrt(elevationData.Count);
-            if (gridSize > 1)
+            // Solve Delaunay Mesh (2D triangulation)
+            var faces = Grasshopper.Kernel.Geometry.Delaunay.Solver.Solve_Faces(nodes, 0);
+            
+            // Create Rhino Mesh
+            var mesh = new Mesh();
+            
+            // Add vertices
+            foreach (var pt in points)
             {
-                for (int i = 0; i < gridSize - 1; i++)
-                {
-                    for (int j = 0; j < gridSize - 1; j++)
-                    {
-                        int idx1 = i * gridSize + j;
-                        int idx2 = i * gridSize + (j + 1);
-                        int idx3 = (i + 1) * gridSize + j;
-                        int idx4 = (i + 1) * gridSize + (j + 1);
+                mesh.Vertices.Add(pt);
+            }
 
-                        if (idx4 < points.Length)
-                        {
-                            // Create two triangles for each quad
-                            mesh.Faces.AddFace(idx1, idx2, idx3);
-                            mesh.Faces.AddFace(idx2, idx4, idx3);
-                        }
-                    }
-                }
+            // Add faces
+            foreach (var face in faces)
+            {
+                mesh.Faces.AddFace(face.A, face.B, face.C);
             }
 
             if (mesh.Faces.Count > 0)
@@ -577,8 +571,9 @@ out geom;";
 
             return null;
         }
-        catch
+        catch (Exception ex)
         {
+            _lastDebugInfo += $", Mesh creation error: {ex.Message}";
             return null;
         }
     }
