@@ -50,6 +50,7 @@ namespace MetaMap
             pManager.AddNumberParameter("Radius", "R", "Radius in meters (default: 500)", GH_ParamAccess.item, 500);
             pManager.AddGeometryParameter("Terrain", "T", "Optional terrain mesh or brep to align buildings with terrain elevation", GH_ParamAccess.item);
             pManager[3].Optional = true;
+            pManager.AddIntegerParameter("Tiles", "Tiles", "Number of tiles per axis (e.g. 3 => 3x3 grid). Set to 0 for adaptive calculation.", GH_ParamAccess.item, 0);
         }
 
         protected override void RegisterOutputParams(GH_OutputParamManager pManager)
@@ -64,11 +65,13 @@ namespace MetaMap
             double lon = 0;
             double radius = 500;
             IGH_GeometricGoo terrainGoo = null;
+            int tileCount = 0;
 
             if (!DA.GetData(0, ref lat)) return;
             if (!DA.GetData(1, ref lon)) return;
             DA.GetData(2, ref radius);
             DA.GetData(3, ref terrainGoo);
+            DA.GetData(4, ref tileCount);
 
             // Check for NaN (signal from MetaFetch that no value is selected)
             if (double.IsNaN(lat) || double.IsNaN(lon))
@@ -97,7 +100,7 @@ namespace MetaMap
 
             try
             {
-                var buildings = ProcessBuildings(lat, lon, radius, terrainGeo);
+                var buildings = ProcessBuildings(lat, lon, radius, terrainGeo, tileCount);
                 DA.SetDataList(0, buildings);
                 DA.SetData(1, string.Join("\n", _debugMessages));
             }
@@ -115,7 +118,7 @@ namespace MetaMap
             _debugMessages.Add($"[{timestamp}] {msg}");
         }
 
-        private List<Brep> ProcessBuildings(double lat, double lon, double radius, GeometryBase terrainGeo)
+        private List<Brep> ProcessBuildings(double lat, double lon, double radius, GeometryBase terrainGeo, int tileCount)
         {
             var buildings = new List<Brep>();
 
@@ -129,13 +132,21 @@ namespace MetaMap
             double maxLon = double.Parse(partsStr[2]);
             double maxLat = double.Parse(partsStr[3]);
 
-            // Adaptive tiling
+            // Tiling selection
             int steps = 1;
-            if (radius <= 251) steps = 1;
-            else if (radius <= 500) steps = 2;
-            else steps = 4;
-
-            Log($"Using {steps}x{steps} grid ({steps * steps} tiles) for {radius}m radius.");
+            if (tileCount > 0)
+            {
+                steps = tileCount;
+                Log($"Using user-defined tiling: {steps}x{steps} grid ({steps * steps} tiles).");
+            }
+            else
+            {
+                // Adaptive tiling
+                if (radius <= 251) steps = 1;
+                else if (radius <= 500) steps = 2;
+                else steps = 4;
+                Log($"Using adaptive tiling: {steps}x{steps} grid ({steps * steps} tiles) for {radius}m radius.");
+            }
 
             var tiles = new List<string>();
             double latStep = (maxLat - minLat) / steps;
