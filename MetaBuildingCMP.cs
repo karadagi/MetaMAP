@@ -16,8 +16,8 @@ namespace MetaMap;
 
 public class MetaBuildingCMP : GH_Component
 {
-    private double _currentCenterLat = 33.775678; // Default Atlanta
-    private double _currentCenterLon = -84.395133; // Default Atlanta
+    private double _currentCenterLat = 41.041122; // Default Istanbul
+    private double _currentCenterLon = 28.989991; // Default Istanbul
     private string _lastDebugInfo = "";
 
     /// <summary>
@@ -63,8 +63,8 @@ public class MetaBuildingCMP : GH_Component
     /// </summary>
     protected override void RegisterInputParams(GH_InputParamManager pManager)
     {
-        pManager.AddNumberParameter("Latitude", "Lat", "Latitude for OpenStreetMap query. Default: 33.775678 (Atlanta, GA)", GH_ParamAccess.item);
-        pManager.AddNumberParameter("Longitude", "Lon", "Longitude for OpenStreetMap query. Default: -84.395133 (Atlanta, GA)", GH_ParamAccess.item);
+        pManager.AddNumberParameter("Latitude", "Lat", "Latitude for OpenStreetMap query. Default: 41.041122", GH_ParamAccess.item);
+        pManager.AddNumberParameter("Longitude", "Lon", "Longitude for OpenStreetMap query. Default: 28.989991", GH_ParamAccess.item);
         pManager.AddNumberParameter("Radius", "R", "Search radius in meters for building extraction. Default: 200m", GH_ParamAccess.item);
         pManager.AddGenericParameter("Terrain", "T", "Optional terrain (Mesh or Brep) to align buildings with terrain elevation", GH_ParamAccess.item);
 
@@ -96,8 +96,8 @@ public class MetaBuildingCMP : GH_Component
         Mesh terrainMesh = null;
 
         // Get input values (with defaults if not provided)
-        double lat = 33.775678; // Default Atlanta latitude
-        double lon = -84.395133; // Default Atlanta longitude
+        double lat = 41.041122; // Default Istanbul latitude
+        double lon = 28.989991; // Default Istanbul longitude
         DA.GetData(0, ref lat);
         DA.GetData(1, ref lon);
         DA.GetData(2, ref radius);

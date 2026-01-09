@@ -227,7 +227,7 @@ html,body,#map{height:100%;margin:0;padding:0}
 </div>
 <button id='fetchButton'>Fetch Location</button>
 <script>
-var map=L.map('map', {zoomControl: false}).setView([33.749,-84.388],12);
+var map=L.map('map', {zoomControl: false}).setView([41.041122, 28.989991],12);
 console.time('mapLoad');
 var tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19});
 tileLayer.addTo(map);
