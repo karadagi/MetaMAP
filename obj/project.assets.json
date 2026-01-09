@@ -580,7 +580,7 @@
     "C:\\Users\\ilker\\.nuget\\packages\\": {}
   },
   "project": {
-    "version": "0.0.49",
+    "version": "0.0.50",
     "restore": {
       "projectUniqueName": "C:\\Users\\ilker\\Desktop\\MetaMAP\\MetaMAP.csproj",
       "projectName": "MetaMAP",
@@ -670,7 +670,7 @@
             "privateAssets": "none"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.308/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
