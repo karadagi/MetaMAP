@@ -68,3 +68,4 @@ C:\Users\ilker\Desktop\MetaMAP\obj\Debug\net8.0-windows\refint\MetaMAP.dll
 C:\Users\ilker\Desktop\MetaMAP\obj\Debug\net8.0-windows\MetaMAP.pdb
 C:\Users\ilker\Desktop\MetaMAP\obj\Debug\net8.0-windows\ref\MetaMAP.dll
 C:\Users\ilker\Desktop\MetaMAP\bin\Debug\net8.0-windows\Templates\MetaMAP_advanced.ghx
+C:\Users\ilker\Desktop\MetaMAP\bin\Debug\net8.0-windows\Templates\MetaMAP_advanced_for_MACOS.ghx
