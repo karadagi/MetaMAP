@@ -225,37 +225,106 @@ public class MetaTerrainCMP : GH_Component
 
         try
         {
-            // Try multiple elevation data sources
+            // Try Open-Meteo API first (Primary)
+            var openMeteoData = FetchFromOpenMeteoAPI(gridPoints);
+            if (openMeteoData.Count > 0)
+            {
+                elevationData.AddRange(openMeteoData);
+                _lastDebugInfo = $"Open-Meteo API: {openMeteoData.Count} points";
+                return elevationData; // Success
+            }
+
+            // Fallback 1: OpenElevation API
             var openElevationData = FetchFromOpenElevationAPI(gridPoints);
             if (openElevationData.Count > 0)
             {
                 elevationData.AddRange(openElevationData);
                 _lastDebugInfo = $"OpenElevation API: {openElevationData.Count} points";
+                return elevationData;
             }
-            else
+
+            // Fallback 2: OSM Contours
+            var osmContourData = FetchFromOSMContours(gridPoints);
+            if (osmContourData.Count > 0)
             {
-                // Fallback to OSM contour data
-                var osmContourData = FetchFromOSMContours(gridPoints);
-                if (osmContourData.Count > 0)
-                {
-                    elevationData.AddRange(osmContourData);
-                    _lastDebugInfo = $"OSM Contours: {osmContourData.Count} points";
-                }
-                else
-                {
-                    // Final fallback: generate synthetic terrain
-                    elevationData = GenerateSyntheticTerrain(gridPoints);
-                    _lastDebugInfo = $"Synthetic terrain: {elevationData.Count} points";
-                }
+                elevationData.AddRange(osmContourData);
+                _lastDebugInfo = $"OSM Contours: {osmContourData.Count} points";
+                return elevationData;
             }
+            
+            throw new Exception("All elevation data sources failed.");
         }
         catch (Exception ex)
         {
-            // Fallback to synthetic terrain if all APIs fail
-            elevationData = GenerateSyntheticTerrain(gridPoints);
-            _lastDebugInfo = $"Fallback synthetic terrain: {ex.Message}";
+            // No synthetic fallback anymore
+            _lastDebugInfo = $"Error fetching elevation: {ex.Message}";
         }
 
+        return elevationData;
+    }
+
+    private List<ElevationData> FetchFromOpenMeteoAPI(List<Point3d> gridPoints)
+    {
+        var elevationData = new List<ElevationData>();
+        
+        try
+        {
+            // Batch requests to avoid URL length limits and server load
+            int batchSize = 80;
+            for (int i = 0; i < gridPoints.Count; i += batchSize)
+            {
+                var batchPoints = gridPoints.Skip(i).Take(batchSize).ToList();
+                
+                // Prepare coordinates strings
+                // Open-Meteo Expects: latitude=52.52,54.32&longitude=13.41,10.12
+                var lats = new List<string>();
+                var lons = new List<string>();
+                
+                foreach (var p in batchPoints)
+                {
+                     // Convert back to lat/lon
+                    double lat = _currentCenterLat + (p.Y / 110540.0);
+                    double lon = _currentCenterLon + (p.X / (111320.0 * Math.Cos(_currentCenterLat * Math.PI / 180.0)));
+                    lats.Add(lat.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    lons.Add(lon.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                }
+                
+                string url = $"https://api.open-meteo.com/v1/elevation?latitude={string.Join(",", lats)}&longitude={string.Join(",", lons)}";
+                
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromSeconds(15);
+                
+                var response = httpClient.GetAsync(url).Result;
+                 if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = response.Content.ReadAsStringAsync().Result;
+                    var result = JsonConvert.DeserializeObject<OpenMeteoResponse>(responseContent);
+                    
+                    if (result?.Elevation != null && result.Elevation.Count == batchPoints.Count)
+                    {
+                        for (int j = 0; j < batchPoints.Count; j++)
+                        {
+                            var point = batchPoints[j];
+                            var elevation = result.Elevation[j];
+                             elevationData.Add(new ElevationData
+                            {
+                                Point = new Point3d(point.X, point.Y, elevation),
+                                Elevation = elevation,
+                                Source = "Open-Meteo"
+                            });
+                        }
+                    }
+                }
+                
+                // Be nice to the API
+                System.Threading.Thread.Sleep(100);
+            }
+        }
+        catch
+        {
+             // Log error if needed, but return what we have (or empty) so fallback can happen
+        }
+        
         return elevationData;
     }
 
@@ -342,31 +411,7 @@ public class MetaTerrainCMP : GH_Component
         return elevationData;
     }
 
-    private List<ElevationData> GenerateSyntheticTerrain(List<Point3d> gridPoints)
-    {
-        var elevationData = new List<ElevationData>();
-        var random = new Random(42); // Fixed seed for reproducible results
 
-        foreach (var point in gridPoints)
-        {
-            // Generate synthetic terrain with some variation
-            double distance = Math.Sqrt(point.X * point.X + point.Y * point.Y);
-            double baseElevation = 100.0; // Base elevation
-            double variation = Math.Sin(distance / 50.0) * 10.0; // Terrain variation
-            double noise = (random.NextDouble() - 0.5) * 5.0; // Random noise
-
-            double elevation = baseElevation + variation + noise;
-
-            elevationData.Add(new ElevationData
-            {
-                Point = new Point3d(point.X, point.Y, elevation),
-                Elevation = elevation,
-                Source = "Synthetic"
-            });
-        }
-
-        return elevationData;
-    }
 
     private string GenerateContourQuery(double south, double west, double north, double east)
     {
@@ -659,5 +704,11 @@ out geom;";
 
         [JsonProperty("lon")]
         public double Lon { get; set; }
+    }
+
+    private class OpenMeteoResponse
+    {
+        [JsonProperty("elevation")]
+        public List<double> Elevation { get; set; }
     }
 }
