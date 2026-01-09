@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v8.0": {
-      "MetaMAP/0.0.51": {
+      "MetaMAP/0.0.52": {
         "dependencies": {
           "Eto.Forms": "2.7.4",
           "Eto.Platform.Windows": "2.7.4",
@@ -91,7 +91,7 @@
     }
   },
   "libraries": {
-    "MetaMAP/0.0.51": {
+    "MetaMAP/0.0.52": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

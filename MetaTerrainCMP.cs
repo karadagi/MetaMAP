@@ -487,24 +487,43 @@ out geom;";
         if (contours.Count == 0)
             return 0;
 
-        // Simple nearest neighbor interpolation
-        double minDistance = double.MaxValue;
-        double elevation = 0;
-
+        // Collect all contour points
+        var allPoints = new List<Point3d>();
         foreach (var contour in contours)
         {
-            foreach (var contourPoint in contour.Points)
+            foreach (var pt in contour.Points)
             {
-                double distance = point.DistanceTo(new Point3d(contourPoint.X, contourPoint.Y, 0));
-                if (distance < minDistance)
-                {
-                    minDistance = distance;
-                    elevation = contour.Elevation;
-                }
+                allPoints.Add(new Point3d(pt.X, pt.Y, contour.Elevation));
             }
         }
 
-        return elevation;
+        // --- Inverse Distance Weighting (IDW) ---
+        double numerator = 0;
+        double denominator = 0;
+        double power = 2.0;
+        int k = 8; // Number of nearest neighbors to consider
+
+        // Find k nearest neighbors
+        var neighbors = allPoints
+            .Select(pt => new { Point = pt, Distance = point.DistanceTo(new Point3d(pt.X, pt.Y, 0)) })
+            .OrderBy(x => x.Distance)
+            .Take(k)
+            .ToList();
+
+        foreach (var neighbor in neighbors)
+        {
+            if (neighbor.Distance < 0.001) // Exact match
+                return neighbor.Point.Z;
+
+            double weight = 1.0 / Math.Pow(neighbor.Distance, power);
+            numerator += weight * neighbor.Point.Z;
+            denominator += weight;
+        }
+
+        if (denominator > 0)
+            return numerator / denominator;
+
+        return neighbors.FirstOrDefault()?.Point.Z ?? 0;
     }
 
     private Bounds CalculateBounds(List<Point3d> points)
