@@ -1,3 +1,27 @@
-# Ignore Visual Studio caches and index files
+# Build artifacts
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Visual Studio caches and user files
 .vs/
 *.vsidx
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test results and coverage
+TestResults/
+*.coverage
+*.coveragexml
+*.cobertura.xml
+CoverletSourceRootsMapping*
+
+# Local build logs
+build_log.txt
+version.txt
+
+# Packaging output
+artifacts/

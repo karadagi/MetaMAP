@@ -577,20 +577,20 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\ilker\\.nuget\\packages\\": {}
+    "C:\\Users\\pkastner\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "0.0.56",
     "restore": {
-      "projectUniqueName": "C:\\Users\\ilker\\Desktop\\MetaMAP\\MetaMAP.csproj",
+      "projectUniqueName": "C:\\Users\\pkastner\\Documents\\GitHub\\MetaMAP-Dev\\MetaMAP\\MetaMAP.csproj",
       "projectName": "MetaMAP",
-      "projectPath": "C:\\Users\\ilker\\Desktop\\MetaMAP\\MetaMAP.csproj",
-      "packagesPath": "C:\\Users\\ilker\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\ilker\\Desktop\\MetaMAP\\obj\\",
+      "projectPath": "C:\\Users\\pkastner\\Documents\\GitHub\\MetaMAP-Dev\\MetaMAP\\MetaMAP.csproj",
+      "packagesPath": "C:\\Users\\pkastner\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\pkastner\\Documents\\GitHub\\MetaMAP-Dev\\MetaMAP\\obj\\",
       "projectStyle": "PackageReference",
       "crossTargeting": true,
       "configFilePaths": [
-        "C:\\Users\\ilker\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\pkastner\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
@@ -619,7 +619,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.300"
+      "SdkAnalysisLevel": "10.0.100"
     },
     "frameworks": {
       "net8.0-windows7.0": {
@@ -662,6 +662,20 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Ref",
+            "version": "[8.0.23, 8.0.23]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Ref",
+            "version": "[8.0.23, 8.0.23]"
+          },
+          {
+            "name": "Microsoft.WindowsDesktop.App.Ref",
+            "version": "[8.0.23, 8.0.23]"
+          }
+        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
@@ -670,7 +684,7 @@
             "privateAssets": "none"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.308/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

@@ -19,6 +19,16 @@
         <LangVersion>12</LangVersion>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <GrasshopperAppData>$(APPDATA)</GrasshopperAppData>
+        <GrasshopperAppData Condition="'$(GrasshopperAppData)' == ''">$(UserProfile)\AppData\Roaming</GrasshopperAppData>
+        <GrasshopperLibrariesDir>$([System.IO.Path]::Combine($(GrasshopperAppData), 'Grasshopper', 'Libraries'))</GrasshopperLibrariesDir>
+        <DebugGhaPath>$(MSBuildProjectDirectory)\bin\Debug\$(TargetFramework)\$(TargetName).gha</DebugGhaPath>
+        <ReleaseGhaPath>$(MSBuildProjectDirectory)\bin\Release\$(TargetFramework)\$(TargetName).gha</ReleaseGhaPath>
+        <DebugGhLinkPath>$(GrasshopperLibrariesDir)\$(TargetName)-Debug.ghlink</DebugGhLinkPath>
+        <ReleaseGhLinkPath>$(GrasshopperLibrariesDir)\$(TargetName)-Release.ghlink</ReleaseGhLinkPath>
+    </PropertyGroup>
+
     <Target Name="WriteVersionToFile" BeforeTargets="BeforeBuild">
         <WriteLinesToFile File="version.txt" Lines="$(Version)" Overwrite="true" />
     </Target>
@@ -29,6 +39,12 @@
 
     <Target Name="CopyAndRenameDll" AfterTargets="AfterBuild">
         <Copy SourceFiles="$(TargetDir)$(TargetName).dll" DestinationFiles="$(TargetDir)$(TargetName).gha" />
+    </Target>
+
+    <Target Name="CreateGrasshopperLinks" AfterTargets="CopyAndRenameDll">
+        <MakeDir Directories="$(GrasshopperLibrariesDir)" Condition="!Exists('$(GrasshopperLibrariesDir)')" />
+        <WriteLinesToFile File="$(DebugGhLinkPath)" Lines="$(DebugGhaPath)" Overwrite="true" />
+        <WriteLinesToFile File="$(ReleaseGhLinkPath)" Lines="$(ReleaseGhaPath)" Overwrite="true" />
     </Target>
 
     <Target Name="DeleteOldZip" AfterTargets="CopyAndRenameDll">
@@ -75,9 +91,15 @@
         <PackageReference Include="Eto.Platform.Windows" Version="2.7.4" />
     </ItemGroup>
 
+    <ItemGroup>
+        <Compile Remove="MetaMAP.Tests\**\*.cs" />
+        <EmbeddedResource Remove="MetaMAP.Tests\**\*" />
+        <None Remove="MetaMAP.Tests\**\*" />
+    </ItemGroup>
+
 
     <ItemGroup>
-      <Compile Update="Properties\Resources.Designer.cs">
+      <Compile Update="MetaMAP\Properties\Resources.Designer.cs">
         <DesignTime>True</DesignTime>
         <AutoGen>True</AutoGen>
         <DependentUpon>Resources.resx</DependentUpon>
@@ -85,7 +107,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <EmbeddedResource Update="Properties\Resources.resx">
+      <EmbeddedResource Update="MetaMAP\Properties\Resources.resx">
         <Generator>ResXFileCodeGenerator</Generator>
         <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       </EmbeddedResource>
