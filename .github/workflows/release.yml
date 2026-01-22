@@ -28,7 +28,7 @@ jobs:
         with:
           token: ${{ secrets.YAK_TOKEN }}
       - name: Prepare yak package
-        run: powershell -File scripts/pack-yak.ps1 -Configuration Release
+        run: powershell -File Scripts/pack-yak.ps1 -Configuration Release
       - name: Build yak
         run: yak build --platform win
         working-directory: artifacts/yak
@@ -36,7 +36,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            bin/Release/net8.0-windows/MetaMAP_Manual_New.zip
+            MetaMAP/bin/Release/net8.0-windows/MetaMAP_Manual_New.zip
             artifacts/yak/*.yak
       - name: Publish to Yak
         if: ${{ secrets.YAK_TOKEN != '' }}

@@ -3,6 +3,7 @@ bin/
 obj/
 **/bin/
 **/obj/
+**/_unused/
 
 # Visual Studio caches and user files
 .vs/
@@ -22,6 +23,7 @@ CoverletSourceRootsMapping*
 # Local build logs
 build_log.txt
 version.txt
+**/version.txt
 
 # Packaging output
 artifacts/

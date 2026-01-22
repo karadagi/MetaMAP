@@ -17,14 +17,17 @@
         <AssemblyVersion>0.0.56</AssemblyVersion>
         <FileVersion>0.0.56</FileVersion>
         <LangVersion>12</LangVersion>
+        <BaseOutputPath>bin\</BaseOutputPath>
+        <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
+        <DefaultItemExcludes>$(DefaultItemExcludes);$(BaseOutputPath)**;$(BaseIntermediateOutputPath)**;_unused\**</DefaultItemExcludes>
     </PropertyGroup>
 
     <PropertyGroup>
         <GrasshopperAppData>$(APPDATA)</GrasshopperAppData>
         <GrasshopperAppData Condition="'$(GrasshopperAppData)' == ''">$(UserProfile)\AppData\Roaming</GrasshopperAppData>
         <GrasshopperLibrariesDir>$([System.IO.Path]::Combine($(GrasshopperAppData), 'Grasshopper', 'Libraries'))</GrasshopperLibrariesDir>
-        <DebugGhaPath>$(MSBuildProjectDirectory)\bin\Debug\$(TargetFramework)\$(TargetName).gha</DebugGhaPath>
-        <ReleaseGhaPath>$(MSBuildProjectDirectory)\bin\Release\$(TargetFramework)\$(TargetName).gha</ReleaseGhaPath>
+        <DebugGhaPath>$(MSBuildProjectDirectory)\$(BaseOutputPath)Debug\$(TargetFramework)\$(TargetName).gha</DebugGhaPath>
+        <ReleaseGhaPath>$(MSBuildProjectDirectory)\$(BaseOutputPath)Release\$(TargetFramework)\$(TargetName).gha</ReleaseGhaPath>
         <DebugGhLinkPath>$(GrasshopperLibrariesDir)\$(TargetName)-Debug.ghlink</DebugGhLinkPath>
         <ReleaseGhLinkPath>$(GrasshopperLibrariesDir)\$(TargetName)-Release.ghlink</ReleaseGhLinkPath>
     </PropertyGroup>
@@ -99,7 +102,7 @@
 
 
     <ItemGroup>
-      <Compile Update="MetaMAP\Properties\Resources.Designer.cs">
+      <Compile Update="Properties\Resources.Designer.cs">
         <DesignTime>True</DesignTime>
         <AutoGen>True</AutoGen>
         <DependentUpon>Resources.resx</DependentUpon>
@@ -107,7 +110,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <EmbeddedResource Update="MetaMAP\Properties\Resources.resx">
+      <EmbeddedResource Update="Properties\Resources.resx">
         <Generator>ResXFileCodeGenerator</Generator>
         <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       </EmbeddedResource>

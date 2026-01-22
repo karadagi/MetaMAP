@@ -2,7 +2,7 @@
 
 ## Release workflow (tagged releases)
 
-1. Update the version in `MetaMAP.csproj`:
+1. Update the version in `MetaMAP/MetaMAP.csproj`:
    ```xml
    <Version>0.0.56</Version>
    <AssemblyVersion>0.0.56</AssemblyVersion>
@@ -31,20 +31,20 @@
 
 ## Yak package notes
 
-- The Yak manifest is generated during CI by `scripts/pack-yak.ps1`.
+- The Yak manifest is generated during CI by `Scripts/pack-yak.ps1`.
 - The package name is `metamap`.
 - The build includes:
   - `MetaMAP.gha`
   - Dependency DLLs
-  - `Templates/`
+  - `MetaMAP/Templates/`
   - `version.txt`
   - `README.md`
-  - `icon.png` (from `Resources/MetaBuilding.png`)
+  - `icon.png` (from `MetaMAP/Resources/MetaBuilding.png`)
 
 ## Local packaging
 
 ```powershell
 dotnet build -c Release
-.\scripts\pack-yak.ps1 -Configuration Release
+.\Scripts\pack-yak.ps1 -Configuration Release
 yak build --platform win -o .\artifacts\yak
 ```

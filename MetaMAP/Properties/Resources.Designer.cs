@@ -19,7 +19,7 @@ namespace MetaMAP.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -61,6 +61,53 @@ namespace MetaMAP.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to /* required styles */
+        ///
+        ///.leaflet-pane,
+        ///.leaflet-tile,
+        ///.leaflet-marker-icon,
+        ///.leaflet-marker-shadow,
+        ///.leaflet-tile-container,
+        ///.leaflet-pane &gt; svg,
+        ///.leaflet-pane &gt; canvas,
+        ///.leaflet-zoom-box,
+        ///.leaflet-image-layer,
+        ///.leaflet-layer {
+        ///	position: absolute;
+        ///	left: 0;
+        ///	top: 0;
+        ///	}
+        ///.leaflet-container {
+        ///	overflow: hidden;
+        ///	}
+        ///.leaflet-tile,
+        ///.leaflet-marker-icon,
+        ///.leaflet-marker-shadow {
+        ///	-webkit-user-select: none;
+        ///	   -moz-user-select: none;
+        ///	        user-select: none;
+        ///	  -webkit-user-drag: none;        /// [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string leaflet_css {
+            get {
+                return ResourceManager.GetString("leaflet_css", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to /* @preserve
+        /// * Leaflet 1.9.4, a JS library for interactive maps. https://leafletjs.com
+        /// * (c) 2010-2023 Vladimir Agafonkin, (c) 2010-2011 CloudMade
+        /// */
+        ///!function(t,e){&quot;object&quot;==typeof exports&amp;&amp;&quot;undefined&quot;!=typeof module?e(exports):&quot;function&quot;==typeof define&amp;&amp;define.amd?define([&quot;exports&quot;],e):e((t=&quot;undefined&quot;!=typeof globalThis?globalThis:t||self).leaflet={})}(this,function(t){&quot;use strict&quot;;function l(t){for(var e,i,n=1,o=arguments.length;n&lt;o;n++)for(e in i=arguments[n])t[e]=i[e];return t}var R=Object.crea [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string leaflet_js {
+            get {
+                return ResourceManager.GetString("leaflet_js", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
         internal static byte[] MetaBuilding {
@@ -93,9 +140,29 @@ namespace MetaMAP.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
+        internal static byte[] MetaMAP_template {
+            get {
+                object obj = ResourceManager.GetObject("MetaMAP_template", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
         internal static byte[] MetaMAP_terrain {
             get {
                 object obj = ResourceManager.GetObject("MetaMAP_terrain", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] MetaMAP_update {
+            get {
+                object obj = ResourceManager.GetObject("MetaMAP_update", resourceCulture);
                 return ((byte[])(obj));
             }
         }

@@ -119,29 +119,30 @@
   </resheader>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
   <data name="MetaBuilding" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\\..\\Resources\\MetaBuilding.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    <value>..\\Resources\\MetaBuilding.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="MetaBuildingAdvanced" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\\..\\Resources\\MetaBuildingAdvanced.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    <value>..\\Resources\\MetaBuildingAdvanced.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="MetaMAP_fetch" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\\..\\Resources\\MetaFetch.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    <value>..\\Resources\\MetaFetch.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="MetaMAP_terrain" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\\..\\Resources\\MetaTerrain.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    <value>..\\Resources\\MetaTerrain.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="MetaMAP_update" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\\..\\Resources\\MetaUpdate.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    <value>..\\Resources\\MetaUpdate.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="MetaMAP_template" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\\..\\Resources\\MetaTemplate.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+    <value>..\\Resources\\MetaTemplate.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="leaflet_css" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\\..\\Resources\\leaflet.css;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
+    <value>..\\Resources\\leaflet.css;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
   <data name="leaflet_js" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\\..\\Resources\\leaflet.js;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
+    <value>..\\Resources\\leaflet.js;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
 </root>
+
 
 

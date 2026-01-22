@@ -1,7 +1,7 @@
 param(
     [string]$Configuration = "Release",
     [string]$OutputDir = "artifacts\\yak",
-    [string]$ProjectPath = "MetaMAP.csproj"
+    [string]$ProjectPath = "MetaMAP\\MetaMAP.csproj"
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,7 +20,7 @@ if (-not $versionNode -or -not $versionNode.Version) {
 $version = $versionNode.Version.Trim()
 $targetFramework = "net8.0-windows"
 
-$buildOutput = Join-Path (Get-Location) "bin\\$Configuration\\$targetFramework"
+$buildOutput = Join-Path (Get-Location) "MetaMAP\\bin\\$Configuration\\$targetFramework"
 if (-not (Test-Path $buildOutput)) {
     throw "Build output not found: $buildOutput. Run dotnet build first."
 }
@@ -42,7 +42,7 @@ $templatesOut = Join-Path $distRoot "Templates"
 Copy-Item -Path (Join-Path $buildOutput "Templates") -Destination $templatesOut -Recurse -Force -ErrorAction SilentlyContinue
 
 # Add icon
-Copy-Item -Path (Join-Path (Get-Location) "Resources\\MetaBuilding.png") -Destination (Join-Path $distRoot "icon.png") -Force
+Copy-Item -Path (Join-Path (Get-Location) "MetaMAP\\Resources\\MetaBuilding.png") -Destination (Join-Path $distRoot "icon.png") -Force
 
 # Add misc docs
 $miscDir = Join-Path $distRoot "misc"

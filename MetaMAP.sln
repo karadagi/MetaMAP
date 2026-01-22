@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36518.9
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMAP", "MetaMAP.csproj", "{AA02A164-ECD1-C279-A085-A78427D4314B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMAP", "MetaMAP\\MetaMAP.csproj", "{AA02A164-ECD1-C279-A085-A78427D4314B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaMAP.Tests", "MetaMAP.Tests\MetaMAP.Tests.csproj", "{53933303-B233-41C2-8FB4-A0B0D13F9363}"
 EndProject
