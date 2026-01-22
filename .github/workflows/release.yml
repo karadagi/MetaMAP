@@ -12,6 +12,8 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      YAK_TOKEN: ${{ secrets.YAK_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -20,26 +22,35 @@ jobs:
       - name: Restore
         run: dotnet restore
       - name: Build
+        if: ${{ env.ACT != 'true' }}
         run: dotnet build -c Release --no-restore
+      - name: Build (act)
+        if: ${{ env.ACT == 'true' }}
+        run: dotnet build MetaMAP/MetaMAP.csproj -c Release --no-restore
       - name: Test
+        if: ${{ env.ACT != 'true' }}
         run: dotnet test -c Release --no-build
       - name: Setup yak
-        uses: paramdigma/setup-yak@v1
+        if: ${{ env.ACT != 'true' }}
+        uses: paramdigma/setup-yak@1.0.0
         with:
-          token: ${{ secrets.YAK_TOKEN }}
+          token: ${{ env.YAK_TOKEN }}
       - name: Prepare yak package
+        if: ${{ env.ACT != 'true' }}
         run: powershell -File Scripts/pack-yak.ps1 -Configuration Release
       - name: Build yak
+        if: ${{ env.ACT != 'true' }}
         run: yak build --platform win
         working-directory: artifacts/yak
       - name: GitHub Release
+        if: ${{ env.ACT != 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           files: |
             MetaMAP/bin/Release/net8.0-windows/MetaMAP_Manual_New.zip
             artifacts/yak/*.yak
       - name: Publish to Yak
-        if: ${{ secrets.YAK_TOKEN != '' }}
+        if: ${{ env.ACT != 'true' && env.YAK_TOKEN != '' }}
         env:
-          YAK_TOKEN: ${{ secrets.YAK_TOKEN }}
+          YAK_TOKEN: ${{ env.YAK_TOKEN }}
         run: yak push artifacts/yak/*.yak

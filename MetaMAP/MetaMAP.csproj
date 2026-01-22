@@ -61,7 +61,8 @@
         <PropertyGroup>
             <ZipPath>$(TargetDir)MetaMAP_Manual_New.zip</ZipPath>
         </PropertyGroup>
-        <Exec Command="powershell -Command &quot;Compress-Archive -Path '$(TargetDir)$(TargetName).gha', '$(TargetDir)*.dll', '$(TargetDir)$(TargetName).deps.json', '$(TargetDir)version.txt', '$(TargetDir)Templates' -DestinationPath '$(ZipPath)' -Force&quot;" />
+        <Exec Condition="'$(OS)' == 'Windows_NT'" Command="powershell -Command &quot;Compress-Archive -Path '$(TargetDir)$(TargetName).gha', '$(TargetDir)*.dll', '$(TargetDir)$(TargetName).deps.json', '$(TargetDir)version.txt', '$(TargetDir)Templates' -DestinationPath '$(ZipPath)' -Force&quot;" />
+        <Exec Condition="'$(OS)' != 'Windows_NT'" Command="bash -c &quot;cd '$(TargetDir)' &amp;&amp; zip -r '$(ZipPath)' '$(TargetName).gha' *.dll '$(TargetName).deps.json' version.txt Templates&quot;" />
     </Target>
 
     <ItemGroup>
